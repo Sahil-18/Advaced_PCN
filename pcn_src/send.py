@@ -2,6 +2,7 @@ from scapy.all import *
 from time import sleep, time
 import random
 import threading
+from datetime import datetime
 
 src_ip = '10.0.0.2'
 dst_ip = '10.0.0.1'
@@ -77,11 +78,11 @@ class DCTCPControllerWithPCN:
     def send_pcn_start(self):
         # in IP header, TOS bits are used for PCN and ECN
         # First two bits are used for PCN, 01 for PCN Start
-        # Next 4 bits are used for sharing the pcn_threshold
+        # Next 4 bits are used for sharing the pcn_threshold value, it codes actual value/3 in bits i.e. if actual threshold is 21 then pcn_threshold will be 7
         # Last 2 bits are used for ECN
         # so in this case TOS will be 01+ pcn_threshold in bits + 01
-        # 01101001 = 0x69 = 105
-        pcn_start_pkt = Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff') / IP(src=src_ip, dst=dst_ip, tos=105) / TCP(sport=rc_port, dport=dst_port) / 'PCN_START'
+        # 01011101 = 0x5D = 93
+        pcn_start_pkt = Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff') / IP(src=src_ip, dst=dst_ip, tos=93) / TCP(sport=rc_port, dport=dst_port) / 'PCN_START'
         sendp(pcn_start_pkt, iface=iface)
         # sniff the network for PCN_ACK
         sniff(filter='tcp and port 1234', prn=self.handle_pcn_ack, timeout=2)
@@ -101,9 +102,20 @@ class DCTCPControllerWithPCN:
 
 def worker_node_loop():
     controller = DCTCPControllerWithPCN()
-
-    for _ in range(10):
+    # Create a csv file to store start time, end time and total time for each iteration 
+    # Open a file in write mode
+    file = open('worker_node.csv', 'w')
+    file.write('Iteration, Total Time (in Sec), Start Time (in HH:MM:SS), End Time (in HH:MM:SS)\n')
+    for i in range(10):
+        # Save start time and end time in the csv file using hh:mm:ss format
+        # but save the total time in seconds
+        start_time = time.time()
+        start_time_str = datetime.now().strftime('%H:%M:%S')
         controller.send_data()
+        end_time = time()
+        end_time_str = datetime.now().strftime('%H:%M:%')
+        total_time = end_time - start_time
+        file.write(f'{i+1}, {total_time:.2f}, {start_time_str}, {end_time_str}\n')
         sleep(2)
 
 if __name__ == '__main__':

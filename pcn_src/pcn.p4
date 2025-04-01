@@ -19,6 +19,11 @@ const bit<2> PCN_RESET = 0x03;
 #define MAX_PORTS 16
 #define NUM_FLOWS 16
 
+#define MIN_THRESHOLD 1
+#define HARMONIC_THRESHOLD 2
+
+#define THRESHOLD_SCHEME 1
+
 /*************************************************************************
 *********************** H E A D E R S  ***********************************
 *************************************************************************/
@@ -101,7 +106,7 @@ struct flow_key_t {
     ip4Addr_t dstAddr;
     bit<16> srcPort;
     bit<16> dstPort;
-    bit<8> protocol;
+    bit<19> threshold;
 }
 
 // Define register to store ingress queue length for pakcets
@@ -168,11 +173,11 @@ control MyIngress(inout header hdr,
 
     bit<32> reg_pos;
     bit<2> pcn;
-    bit<4> threshold;
+    bit<19> threshold;
 
     action extract_pcn_threshold() {
         pcn = hdr.ipv4.diffserve[5:4];
-        threshold = hdr.ipv4.diffserve[3:0];
+        threshold = hdr.ipv4.diffserve[3:0]*3;
     }
 
     action handle_pcn_start (egreessSpec_t port){
@@ -180,8 +185,20 @@ control MyIngress(inout header hdr,
         pcn_port_data.read(current_data, port);
 
         current_data.number_of_flows = current_data.number_of_flows + 1;
-        current_data.pcn_enabled = 1;
-        current_data.threshold = threshold;
+        if(current_data.pcn_enabled == 0){
+            current_data.pcn_enabled = 1;
+            current_data.threshold = threshold;
+        }else{
+            if(THRESHOLD_SCHEME == MIN_THRESHOLD){
+                // use minimum of current_data.threshold and threshold
+                if(current_data.threshold > threshold){
+                    current_data.threshold = threshold;
+                }
+            }else if (THRESHOLD_SCHEME == HARMONIC_THRESHOLD){
+                current_data.threshold = 1/(1/current_data.threshold + 1/threshold);
+            }
+        }
+        
         
         pcn_port_data.write(current_data, port);
 
@@ -191,7 +208,7 @@ control MyIngress(inout header hdr,
         current_flow.dstAddr = hdr.ipv4.dstAddr;
         current_flow.srcPort = hdr.tcp.srcPort;
         current_flow.dstAddr = hdr.tcp.dstPort;
-        current_flow.protocol = hdr.ipv4.protocol;
+        current_flow.threshold = threshold;
 
         flow_key.write(current_flow, reg_pos);
     }
@@ -199,6 +216,7 @@ control MyIngress(inout header hdr,
     handle_pcn_reset (egreessSpec_t port) {
         flow_key_t current_flow;
         flow_key.read(current_flow, reg_pos);
+        bit<19> threshold = current_flow.threshold;
 
         if(current_flow.flag == 1){
             current_flow.flag = 0;
@@ -206,7 +224,7 @@ control MyIngress(inout header hdr,
             current_flow.dstAddr = 0;
             current_flow.srcPort = 0;
             current_flow.dstAddr = 0;
-            current_flow.protocol = 0;
+            current_flow.threshold = 0;
 
             flow_key.write(current_flow, reg_pos);
 
@@ -217,6 +235,10 @@ control MyIngress(inout header hdr,
             if(current_data.number_of_flows == 0){
                 current_data.pcn_enabled = 0;
                 current_data.threshold = ECN_THRESHOLD;
+            }else{
+                if(THRESHOLD_SCHEME == HARMONIC_THRESHOLD){
+                    current_data.threshold = 1/(current_data.threshold - 1/threshold);
+                }
             }
 
             pcn_port_data.write(current_data, port);
@@ -230,7 +252,7 @@ control MyIngress(inout header hdr,
     action compute_hash(ip4Addr_t srcAddr, ip4Addr_t dstAddr, bit<16> srcPort, bit<16> dstPort){
         // Get register position
         hash(reg_pos, HashAlgorithm.crc32, (bit<32>)0, {
-            srcAddr, dstAddr, srcPort, dstPort, hdr.ipv4.protocol
+            srcAddr, dstAddr, srcPort, dstPort
         });
 
         reg_pos = reg_pos % NUM_FLOWS;
@@ -243,9 +265,9 @@ control MyIngress(inout header hdr,
         hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
     }
 
-    table ipv4_lpm {
+    table ipv4_exact {
         key = {
-            hdr.ipv4.dstAddr: lpm;
+            hdr.ipv4.dstAddr: exact;
         }
         actions = {
             ipv4_forward;
@@ -269,7 +291,7 @@ control MyIngress(inout header hdr,
                 handle_pcn_reset(standard_metadata.ingress_port);
             }
 
-            ipv4_lpm.apply();
+            ipv4_exact.apply();
         }
     }
 }
