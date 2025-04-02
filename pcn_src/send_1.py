@@ -5,7 +5,7 @@ import threading
 from datetime import datetime
 
 src_ip = '10.0.0.2'
-dst_ip = '10.0.0.1'
+dst_ip = '10.0.0.6'
 rc_port = random.randint(49152, 65535)
 dst_port = 1234
 iface = 'eth0'
@@ -104,7 +104,7 @@ def worker_node_loop():
     controller = DCTCPControllerWithPCN()
     # Create a csv file to store start time, end time and total time for each iteration 
     # Open a file in write mode
-    file = open('worker_node.csv', 'w')
+    file = open('worker_node_1.csv', 'w')
     file.write('Iteration, Total Time (in Sec), Start Time (in HH:MM:SS), End Time (in HH:MM:SS)\n')
     for i in range(10):
         # Save start time and end time in the csv file using hh:mm:ss format
@@ -113,7 +113,7 @@ def worker_node_loop():
         start_time_str = datetime.now().strftime('%H:%M:%S')
         controller.send_data()
         end_time = time()
-        end_time_str = datetime.now().strftime('%H:%M:%')
+        end_time_str = datetime.now().strftime('%H:%M:%S')
         total_time = end_time - start_time
         file.write(f'{i+1}, {total_time:.2f}, {start_time_str}, {end_time_str}\n')
         sleep(2)

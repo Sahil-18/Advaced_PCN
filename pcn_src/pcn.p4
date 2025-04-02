@@ -237,7 +237,7 @@ control MyIngress(inout header hdr,
                 current_data.threshold = ECN_THRESHOLD;
             }else{
                 if(THRESHOLD_SCHEME == HARMONIC_THRESHOLD){
-                    current_data.threshold = 1/(current_data.threshold - 1/threshold);
+                    current_data.threshold = 1/(1/current_data.threshold - 1/threshold);
                 }
             }
 
@@ -313,20 +313,22 @@ control MyEgress(inout header hdr,
         if (hdr.ipv4.diffserve[5:4]!=PCN_START){
             pcn_port_data_t current_data;
             pcn_port_data.read(current_data, standard_metadata.ingress_port);
-
+            bit<4> buffer_pos = standard_metadata.enq_qdepth/3;
             if(current_data.pcn_enabled==1){
                 if(hdr.ipv4.diffserve[5:4]!=0 && standard_metadata.enq_qdepth >= ECN_THRESHOLD){
                     mark_ecn();
-                }else if(standard_metadata.enq_qdepth >= current_data.threshold){
+                }else if(hdr.ipv4.diffserve[5:4]==0 && standard_metadata.enq_qdepth >= current_data.threshold){
                     mark_ecn():
                 }
-
             }else{
                 if(hdr.ipv4.ecn == 1 || hdr.ipv4.ecn == 2){
                     if(standard_metadata.enq_qdepth >= ECN_THRESHOLD){
                         mark_ecn();
                     }
                 }
+            }
+            if(hdr.ipv4.diffserve[5:4]!=0){
+                hdr.ipv4.diffserve[3:0] = buffer_pos;
             }
         }
     }
@@ -340,20 +342,23 @@ control MyComputeChecksum(inout headers hdr, inout metadata meta) {
      apply {
         update_checksum(
             hdr.ipv4.isValid(),
-            { hdr.ipv4.version,
-              hdr.ipv4.ihl,
-              hdr.ipv4.diffserv,
-              hdr.ipv4.ecn,
-              hdr.ipv4.totalLen,
-              hdr.ipv4.identification,
-              hdr.ipv4.flags,
-              hdr.ipv4.fragOffset,
-              hdr.ipv4.ttl,
-              hdr.ipv4.protocol,
-              hdr.ipv4.srcAddr,
-              hdr.ipv4.dstAddr },
+            { 
+                hdr.ipv4.version,
+                hdr.ipv4.ihl,
+                hdr.ipv4.diffserve
+                hdr.ipv4.ecn,
+                hdr.ipv4.totalLen,
+                hdr.ipv4.identification,
+                hdr.ipv4.flags,
+                hdr.ipv4.fragOffset,
+                hdr.ipv4.ttl,
+                hdr.ipv4.protocol,
+                hdr.ipv4.srcAddr,
+                hdr.ipv4.dstAddr 
+            },
             hdr.ipv4.hdrChecksum,
-            HashAlgorithm.csum16);
+            HashAlgorithm.csum16
+        );
     }
 }
 
