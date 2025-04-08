@@ -1,6 +1,7 @@
 from scapy.all import *
 from time import sleep, time
 import random
+from datetime import datetime
 
 src_ip = '10.0.0.7'
 dst_ip = '10.0.0.3'
@@ -21,10 +22,14 @@ class DCTCPReceiver:
         # Next 4 bits are used for sharing the pcn_threshold
         # Last 2 bits are used for ECN
         # so in this case the first two bits should be 01
+        time_str = datetime.now().strftime('%H:%M:%S')
+
         if pkt[IP].tos >> 6 == 1:
             self.pcn_threshold = pkt[IP].tos & 0b00111100
             self.iteration += 1
             self.packets = 0
+
+            self.file.write(f'{self.iteration},{time_str},PCN Start,{self.packets},0, N\n')
             # send a PCN_ACK
             # in IP header, TOS bits are used for PCN and ECN
             # First two bits are used for PCN, 10 for PCN ACK
@@ -42,7 +47,6 @@ class DCTCPReceiver:
             # Last 2 bits are used for ECN
             # extract the pcn_threshold value from the packet
             buffer_position = ((pkt[IP].tos & 0b00111100) >> 2)*3
-            self.file.write(f'{self.iteration},{self.packets},{buffer_position}\n')
             # Data packet send TCP ACK 
             # Also check whether the packet is ECN marked i.e. ECN bits are 11 if so, the TCP flag value will be 0x40 for DCTCP ECN
             if pkt[IP].tos & 0b00000011 == 0b11:
@@ -51,15 +55,17 @@ class DCTCPReceiver:
                 # so the value will be 0x40
                 ack_pkt = Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff') / IP(src=src_ip, dst=dst_ip, tos=193) / TCP(sport=src_port, dport=pkt[TCP].sport, flags=0x40)
                 sendp(ack_pkt, iface=iface)
+                self.file.write(f'{self.iteration},{time_str},DATA,{self.packets},{buffer_position}, Y\n')
             else:
                 ack_pkt = Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff') / IP(src=src_ip, dst=dst_ip, tos=193) / TCP(sport=src_port, dport=pkt[TCP].sport)
                 sendp(ack_pkt, iface=iface)
+                self.file.write(f'{self.iteration},{time_str},DATA,{self.packets},{buffer_position}, N\n')
     
     def receive_packets(self):
         # File will have following information in each line
         # Iteration, Packet Number and Buffer Position
         # Buffer position is calculated by multiplying pcn_threshold with 3
-        self.file.write('Iteration,Packet Number,Buffer Position\n')
+        self.file.write('Iteration, Time (in HH:MM:SS), Packet Type,Packet Number,Buffer Position, Congestion\n')
         try: 
             while True:
                 sniff(filter='tcp and port 1234', prn=self.handle_pkt)

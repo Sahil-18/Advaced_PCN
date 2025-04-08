@@ -199,7 +199,6 @@ control MyIngress(inout header hdr,
             }
         }
         
-        
         pcn_port_data.write(current_data, port);
 
         flow_key_t current_flow;

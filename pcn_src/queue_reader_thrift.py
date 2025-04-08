@@ -4,8 +4,11 @@ import sys
 from time import sleep, time
 from thrift.transport import TTransport, TSocket
 from thrift.protocol import TBinaryProtocol
+from datetime import datetime
 
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gen-py'))
+gen_py_path = os.environ.get('GEN_PY_PATH')
+
+sys.path.append(gen_py_path)
 from bm_runtime import Standard
 from bm_runtime.ttypes import *
 
@@ -18,9 +21,9 @@ def readQueueLengths(switch, port, file):
         register_name = "queue_length"
         register_value = switch.bm_read_register(0, register_name, port)
         time_diff = time() - start_time
+        time_str = datetime.now().strftime('%H:%M:%S')
 
-        file.write(f'{time_diff}, {register_value}\n')
-        print(f'Port {port} queue length: {register_value}')
+        file.write(f'{time_str}, {time_diff}, {register_value}\n')
 
     except Exception as e:
         print(f"Error reading queue length for port {port}: {e}")
@@ -46,21 +49,28 @@ def main(thrift_port_s1, thrift_port_s2):
         s1, transport_s1 = create_thrift_connection('localhost', thrift_port_s1)
         s2, transport_s2 = create_thrift_connection('localhost', thrift_port_s2)
 
-        # Open files for writing queue lengths
-        with open(s1_queue_file, 'w') as s1_file, open(s2_queue_file, 'w') as s2_file:
-            start_time = time()
-            while True:
-                readQueueLengths(s1, 1, s1_file)  # Read queue length for port 1 on switch s1
-                readQueueLengths(s2, 2, s2_file)  # Read queue length for port 2 on switch s2
-                sleep(0.5)  # Sleep for a second before reading again
+        s1_file = open(s1_queue_file, 'w')
+        s2_file = open(s2_queue_file, 'w')
 
-        # Close the Thrift connections
-        transport_s1.close()
-        transport_s2.close()
+        # Write header to the files
+        # Header will be the absolute time in HH:MM:SS format
+        # and the current time after start_time and queue length
+        s1_file.write('Time (in HH:MM:SS) ,Time (s), Queue Length\n')
+        s2_file.write('Time (in HH:MM:SS) ,Time (s), Queue Length\n')
+
+        # Open files for writing queue lengths
+        start_time = time()
+        while True:
+            readQueueLengths(s1, 1, s1_file)  # Read queue length for port 1 on switch s1
+            readQueueLengths(s2, 2, s2_file)  # Read queue length for port 2 on switch s2
+            sleep(0.5)  # Sleep for a second before reading again
+
     except KeyboardInterrupt:
         print("Interrupted by user. Exiting...")
-    except Exception as e:
-        print(f"An error occurred: {e}")
+        transport_s1.close()
+        transport_s2.close()
+        s1_file.close()
+        s2_file.close()
 
 if __name__ == "__main__":
     main(thrift_port_s1=9090, thrift_port_s2=9091)

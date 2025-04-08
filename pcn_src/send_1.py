@@ -117,6 +117,8 @@ def worker_node_loop():
         total_time = end_time - start_time
         file.write(f'{i+1}, {total_time:.2f}, {start_time_str}, {end_time_str}\n')
         sleep(2)
+    # close the file
+    file.close()
 
 if __name__ == '__main__':
     worker_node_loop()
