@@ -6,8 +6,8 @@ from thrift.transport import TTransport, TSocket
 from thrift.protocol import TBinaryProtocol
 from datetime import datetime
 
-from bm_runtime import Standard
-from bm_runtime.Standard.ttypes import *
+from bm_runtime.standard import Standard
+from bm_runtime.standard.ttypes import *
 
 s1_queue_file= 's1_queue_lengths.csv'
 s2_queue_file= 's2_queue_lengths.csv'

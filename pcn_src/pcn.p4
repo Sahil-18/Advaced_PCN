@@ -16,7 +16,7 @@ const bit<2> PCN_START = 0x01;
 const bit<2> PCN_RESET = 0x03;
 
 // constants for number of ports and number of flows
-#define MAX_PORTS 16
+#define MAX_PORTS 8
 #define NUM_FLOWS 16
 
 #define MIN_THRESHOLD 1
@@ -114,9 +114,9 @@ struct queue_len_t{
     bit<16> queue_length;
 }
 
-register<pcn_port_data_t>(pcn_port_data, MAX_PORTS);
-register<flow_key_t>(flow_key, NUM_FLOWS);
-register<queue_t>(queue_len, MAX_PORTS);
+register<pcn_port_data_t>(MAX_PORTS) pcn_port_data;
+register<flow_key_t>(NUM_FLOWS) flow_key;
+register<queue_len_t>(MAX_PORTS) queue_len;
 
 /*************************************************************************
 ************************* P A R S E R  ***********************************
@@ -167,7 +167,7 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 **************  I N G R E S S   P R O C E S S I N G   *******************
 ************************************************************************/
 
-control MyIngress(inout header hdr,
+control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata){
 
@@ -177,12 +177,12 @@ control MyIngress(inout header hdr,
 
     action extract_pcn_threshold() {
         pcn = hdr.ipv4.diffserve[5:4];
-        threshold = hdr.ipv4.diffserve[3:0]*3;
+        threshold = (bit<19>)hdr.ipv4.diffserve[3:0]*3;
     }
 
     action handle_pcn_start (egreessSpec_t port){
         pcn_port_data_t current_data;
-        pcn_port_data.read(current_data, port);
+        pcn_port_data.read(current_data, (bit<32>)port);
 
         current_data.number_of_flows = current_data.number_of_flows + 1;
         if(current_data.pcn_enabled == 0){
@@ -199,23 +199,23 @@ control MyIngress(inout header hdr,
             }
         }
         
-        pcn_port_data.write(current_data, port);
+        pcn_port_data.write((bit<32>)port, current_data);
 
         flow_key_t current_flow;
         current_flow.flag = 1;
         current_flow.srcAddr = hdr.ipv4.srcAddr;
         current_flow.dstAddr = hdr.ipv4.dstAddr;
         current_flow.srcPort = hdr.tcp.srcPort;
-        current_flow.dstAddr = hdr.tcp.dstPort;
+        current_flow.dstPort = hdr.tcp.dstPort;
         current_flow.threshold = threshold;
 
-        flow_key.write(current_flow, reg_pos);
+        flow_key.write(reg_pos, current_flow);
     }
 
-    handle_pcn_reset (egreessSpec_t port) {
+    action handle_pcn_reset (egreessSpec_t port) {
         flow_key_t current_flow;
         flow_key.read(current_flow, reg_pos);
-        bit<19> threshold = current_flow.threshold;
+        threshold = current_flow.threshold;
 
         if(current_flow.flag == 1){
             current_flow.flag = 0;
@@ -225,10 +225,10 @@ control MyIngress(inout header hdr,
             current_flow.dstAddr = 0;
             current_flow.threshold = 0;
 
-            flow_key.write(current_flow, reg_pos);
+            flow_key.write(reg_pos, current_flow);
 
             pcn_port_data_t current_data;
-            pcn_port_data.read(current_data, port);
+            pcn_port_data.read(current_data, (bit<32>)port);
 
             current_data.number_of_flows = current_data.number_of_flows - 1;
             if(current_data.number_of_flows == 0){
@@ -240,7 +240,7 @@ control MyIngress(inout header hdr,
                 }
             }
 
-            pcn_port_data.write(current_data, port);
+            pcn_port_data.write((bit<32>)port, current_data);
         }
     }
 
@@ -252,7 +252,7 @@ control MyIngress(inout header hdr,
         // Get register position
         hash(reg_pos, HashAlgorithm.crc32, (bit<32>)0, {
             srcAddr, dstAddr, srcPort, dstPort
-        });
+        }, (bit<32>)1024);
 
         reg_pos = reg_pos % NUM_FLOWS;
     }
@@ -299,7 +299,7 @@ control MyIngress(inout header hdr,
 ****************  E G R E S S   P R O C E S S I N G   ********************
 *************************************************************************/
 
-control MyEgress(inout header hdr,
+control MyEgress(inout headers hdr,
                  inout metadata meta,
                  inout standard_metadata_t standard_metadata) {
 
@@ -308,16 +308,19 @@ control MyEgress(inout header hdr,
     }
 
     apply {
-        queue_len.write(standard_metadata.enq_qdepth, standard_metadata.ingress_port);
+        queue_len_t current_len;
+        current_len.queue_length = (bit<16>)standard_metadata.enq_qdepth;
+
+        queue_len.write((bit<32>)standard_metadata.ingress_port, current_len);
         if (hdr.ipv4.diffserve[5:4]!=PCN_START){
             pcn_port_data_t current_data;
-            pcn_port_data.read(current_data, standard_metadata.ingress_port);
-            bit<4> buffer_pos = standard_metadata.enq_qdepth/3;
+            pcn_port_data.read(current_data, (bit<32>)standard_metadata.ingress_port);
+            bit<4> buffer_pos = (bit<4>)(standard_metadata.enq_qdepth/3);
             if(current_data.pcn_enabled==1){
                 if(hdr.ipv4.diffserve[5:4]!=0 && standard_metadata.enq_qdepth >= ECN_THRESHOLD){
                     mark_ecn();
                 }else if(hdr.ipv4.diffserve[5:4]==0 && standard_metadata.enq_qdepth >= current_data.threshold){
-                    mark_ecn():
+                    mark_ecn();
                 }
             }else{
                 if(hdr.ipv4.ecn == 1 || hdr.ipv4.ecn == 2){
@@ -344,7 +347,7 @@ control MyComputeChecksum(inout headers hdr, inout metadata meta) {
             { 
                 hdr.ipv4.version,
                 hdr.ipv4.ihl,
-                hdr.ipv4.diffserve
+                hdr.ipv4.diffserve,
                 hdr.ipv4.ecn,
                 hdr.ipv4.totalLen,
                 hdr.ipv4.identification,
