@@ -180,6 +180,7 @@ control MyIngress(inout headers hdr,
         threshold = (bit<19>)hdr.ipv4.diffserve[3:0]*3;
     }
 
+    /*
     action handle_pcn_start (egreessSpec_t port){
         pcn_port_data_t current_data;
         pcn_port_data.read(current_data, (bit<32>)port);
@@ -243,6 +244,7 @@ control MyIngress(inout headers hdr,
             pcn_port_data.write((bit<32>)port, current_data);
         }
     }
+    */
 
     action drop(){
         mark_to_drop(standard_metadata);
@@ -281,13 +283,82 @@ control MyIngress(inout headers hdr,
             extract_pcn_threshold();
             
             // Compute hash
+
             compute_hash(hdr.ipv4.srcAddr, hdr.ipv4.dstAddr, hdr.tcp.srcPort, hdr.tcp.dstPort);
 
             //pcn specific logic
+            /* Since P4 does not allow read and write of registers from action which is 
+                conditionally applied, all conditional logic of handling PCN_START and PCN_RESET
+                will be written here only */
+
             if(pcn == PCN_START){
-                handle_pcn_start(standard_metadata.ingress_port);
-            }else if(pcn == PCN_RESET){
-                handle_pcn_reset(standard_metadata.ingress_port);
+                
+                pcn_port_data_t current_data;
+                pcn_port_data.read(current_data, (bit<32>)standard_metadata.ingress_port);
+
+                current_data.number_of_flows = current_data.number_of_flows + 1;
+                if(current_data.pcn_enabled == 0){
+                    current_data.pcn_enabled = 1;
+                    current_data.threshold = threshold;
+                }
+                else{
+                    if(THRESHOLD_SCHEME == MIN_THRESHOLD){
+                        // use of minimum current_data.threshold and threshold
+                        if(current_data.threshold > threshold){
+                            current_data.threshold = threshold;
+                        }
+                    }
+                    else if(THRESHOLD_SCHEME == HARMONIC_THRESHOLD){
+                        current_data.threshold = 1/(1/current_data.threshold + 1/threshold);
+                    }
+                }
+
+                pcn_port_data.write((bit<32>)standard_metadata.ingress_port, current_data);
+
+                flow_key_t current_flow;
+                current_flow.flag = 1;
+                current_flow.srcAddr = hdr.ipv4.srcAddr;
+                current_flow.dstAddr = hdr.ipv4.dstAddr;
+                current_flow.srcPort = hdr.tcp.srcPort;
+                current_flow.dstPort = hdr.tcp.dstPort;
+                current_flow.threshold = threshold;
+
+                flow_key.write(reg_pos, current_flow;)
+
+            }
+            else if(pcn == PCN_RESET){
+
+                flow_key_t current_flow;
+                flow_key.read(current_flow, reg_pos);
+                threshold = current_flow.threshold;
+
+                if(current_flow.flag == 1){
+                    current_flow.flag = 0;
+                    current_flow.srcAddr = 0;
+                    current_flow.dstAddr = 0;
+                    current_flow.srcPort = 0;
+                    current_flow.dstPort = 0;
+                    current_flow.threshold = 0;
+
+                    flow_key.write(pos, current_flow);
+
+                    pcn_port_data_t current_data;
+                    pcn_port_data.read(current_data, (bit<32>)standard_metadata.ingress_port);
+
+                    current_data.number_of_flows = current_data.number_of_flows - 1;
+                    if(current_data.number_of_flows == 0){
+                        current_data.pcn_enabled = 0;
+                        current_data.threshold = ECN_THRESHOLD;
+                    }
+                    else{
+                        if(THRESHOLD_SCHEME == HARMONIC_THRESHOLD){
+                            current_data.threshold = 1/(1/current_data.threshold - 1/threshold);
+                        }
+                    }
+
+                    pcn_port_data.write((bit<32>)standard_metadata.ingress_port, current_data);
+                }
+                
             }
 
             ipv4_exact.apply();
