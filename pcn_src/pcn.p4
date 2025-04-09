@@ -323,7 +323,7 @@ control MyIngress(inout headers hdr,
                 current_flow.dstPort = hdr.tcp.dstPort;
                 current_flow.threshold = threshold;
 
-                flow_key.write(reg_pos, current_flow;)
+                flow_key.write(reg_pos, current_flow);
 
             }
             else if(pcn == PCN_RESET){
@@ -340,7 +340,7 @@ control MyIngress(inout headers hdr,
                     current_flow.dstPort = 0;
                     current_flow.threshold = 0;
 
-                    flow_key.write(pos, current_flow);
+                    flow_key.write(reg_pos, current_flow);
 
                     pcn_port_data_t current_data;
                     pcn_port_data.read(current_data, (bit<32>)standard_metadata.ingress_port);
@@ -381,12 +381,14 @@ control MyEgress(inout headers hdr,
     apply {
         queue_len_t current_len;
         current_len.queue_length = (bit<16>)standard_metadata.enq_qdepth;
+        bit<16> masked = current_len.queue_length & 0xF;
+        bit<4> temp_buff = (bit<4>)masked;
 
         queue_len.write((bit<32>)standard_metadata.ingress_port, current_len);
         if (hdr.ipv4.diffserve[5:4]!=PCN_START){
             pcn_port_data_t current_data;
             pcn_port_data.read(current_data, (bit<32>)standard_metadata.ingress_port);
-            bit<4> buffer_pos = (bit<4>)(standard_metadata.enq_qdepth/3);
+            
             if(current_data.pcn_enabled==1){
                 if(hdr.ipv4.diffserve[5:4]!=0 && standard_metadata.enq_qdepth >= ECN_THRESHOLD){
                     mark_ecn();
@@ -401,7 +403,8 @@ control MyEgress(inout headers hdr,
                 }
             }
             if(hdr.ipv4.diffserve[5:4]!=0){
-                hdr.ipv4.diffserve[3:0] = buffer_pos;
+                
+                hdr.ipv4.diffserve[3:0] = temp_buff;
             }
         }
     }
