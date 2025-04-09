@@ -6,11 +6,8 @@ from thrift.transport import TTransport, TSocket
 from thrift.protocol import TBinaryProtocol
 from datetime import datetime
 
-gen_py_path = os.environ.get('GEN_PY_PATH')
-
-sys.path.append(gen_py_path)
 from bm_runtime import Standard
-from bm_runtime.ttypes import *
+from bm_runtime.Standard.ttypes import *
 
 s1_queue_file= 's1_queue_lengths.csv'
 s2_queue_file= 's2_queue_lengths.csv'

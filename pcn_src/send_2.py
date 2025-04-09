@@ -13,15 +13,18 @@ iface = 'eth0'
 cwnd_lock = threading.Lock()
 
 class DCTCPControllerWithPCN:
-    def __init__(self):
+    def __init__(self, file, iteration):
         self.alpha = 1.0
-        self.cwnd = 20
+        self.cwnd = 10
         self.max_cwnd = 100
         self.min_cwnd = 2
         self.pcn_threshold = 10
         self.sent_packets = 0
         self.acked_packets = 0
         self.total = 250 * 1024 * 1024
+        self.wait = 0
+        self.file = file
+        self.iter = 0
 
     def handle_ack_pkt(self, pkt):
         if pkt[TCP].dport == rc_port and pkt[TCP].sport == dst_port:
@@ -64,6 +67,8 @@ class DCTCPControllerWithPCN:
             self.cwnd -= 1
             self.sent_packets += 1
             cwnd_lock.release()
+            time_str = datetime.now().strftime('%H:%M:%S')
+            self.file.write(f'{self.iter},{time_str},{self.sent_packets},PCN Start,{self.cwnd},{self.total},,,\n')
                 
     
     def handle_pcn_ack(self, pkt):
@@ -84,28 +89,35 @@ class DCTCPControllerWithPCN:
         # 01011101 = 0x5D = 93
         pcn_start_pkt = Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff') / IP(src=src_ip, dst=dst_ip, tos=93) / TCP(sport=rc_port, dport=dst_port) / 'PCN_START'
         sendp(pcn_start_pkt, iface=iface)
+        time_str = datetime.now().strftime('%H:%M:%S')
+        self.file.write(f'{self.iter},{time_str},{self.sent_packets},PCN Start,{self.cwnd},{self.total},,,\n')
         # sniff the network for PCN_ACK
         sniff(filter='tcp and port 1234', prn=self.handle_pcn_ack, timeout=2)
 
     def send_data(self):
+        self.iter += 1
+        self.wait = 0
         self.acked_packets = 0
         self.sent_packets = 0
-        self.cwnd = 20
+        self.cwnd = 10
         self.total = 250 * 1024 * 1024
         self.send_pcn_start()
         ack_thread = threading.Thread(target=self.handle_ack)
         ack_thread.start()
         self.send_data_packets()
         while self.sent_packets != self.acked_packets and self.total == 0:
-            sleep(1)
+            if(self.wait == 10 and self.total == 0):
+                break
+            self.wait += 1
+            sleep(0.1)
 
 
 def worker_node_loop():
-    controller = DCTCPControllerWithPCN()
     # Create a csv file to store start time, end time and total time for each iteration 
     # Open a file in write mode
     file = open('worker_node_2.csv', 'w')
-    file.write('Iteration, Total Time (in Sec), Start Time (in HH:MM:SS), End Time (in HH:MM:SS)\n')
+    file.write('Iteration, Time (HH:MM:SS), Packet Number, Packet Type, Congestion Window, Total Bytes Sent, Total Time (Sec), Start Time, End Time\n')
+    controller = DCTCPControllerWithPCN(file, 0)
     for i in range(10):
         # Save start time and end time in the csv file using hh:mm:ss format
         # but save the total time in seconds
@@ -116,7 +128,8 @@ def worker_node_loop():
         end_time_str = datetime.now().strftime('%H:%M:%S')
         total_time = end_time - start_time
         file.write(f'{i+1}, {total_time:.2f}, {start_time_str}, {end_time_str}\n')
-        sleep(2)
+        sleep(6)
+    # close the file
     file.close()
 
 if __name__ == '__main__':

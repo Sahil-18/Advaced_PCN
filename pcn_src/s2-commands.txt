@@ -1,0 +1,8 @@
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.1/32 => 08:00:00:00:00:01 1
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.2/32 => 08:00:00:00:00:02 1
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.3/32 => 08:00:00:00:00:03 1
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.4/32 => 08:00:00:00:00:04 1
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.5/32 => 08:00:00:00:00:05 2
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.6/32 => 08:00:00:00:00:06 3
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.7/32 => 08:00:00:00:00:07 4
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.8/32 => 08:00:00:00:00:08 5
