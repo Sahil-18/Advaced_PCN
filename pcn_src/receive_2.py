@@ -46,7 +46,7 @@ class DCTCPReceiver:
             # Next 4 bits are used for sharing the pcn_threshold
             # Last 2 bits are used for ECN
             # extract the pcn_threshold value from the packet
-            buffer_position = ((pkt[IP].tos & 0b00111100) >> 2)*3
+            buffer_position = ((pkt[IP].tos & 0b00111100) >> 2)*6
             # Data packet send TCP ACK 
             # Also check whether the packet is ECN marked i.e. ECN bits are 11 if so, the TCP flag value will be 0x40 for DCTCP ECN
             if pkt[IP].tos & 0b00000011 == 0b11:
