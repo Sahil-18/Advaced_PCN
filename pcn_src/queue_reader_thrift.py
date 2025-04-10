@@ -4,6 +4,7 @@ import sys
 from time import sleep, time
 from thrift.transport import TTransport, TSocket
 from thrift.protocol import TBinaryProtocol
+from thrift.protocol.TMultiplexedProtocol import TMultiplexedProtocol
 from datetime import datetime
 
 from bm_runtime.standard import Standard
@@ -15,12 +16,14 @@ start_time = 0
 
 def readQueueLengths(switch, port, file):
     try:
-        register_name = "queue_length"
-        register_value = switch.bm_read_register(0, register_name, port)
+        register_name = "queue_len"
+        register_value = switch.bm_register_read(0, register_name, port)
         time_diff = time() - start_time
         time_str = datetime.now().strftime('%H:%M:%S')
 
         file.write(f'{time_str}, {time_diff}, {register_value}\n')
+        print(f"Port {port} Queue Length: {register_value}, Time: {time_str}, Time Diff: {time_diff:.2f}s")
+        file.flush()  # Ensure the data is written to the file immediately
 
     except Exception as e:
         print(f"Error reading queue length for port {port}: {e}")
@@ -33,7 +36,9 @@ def create_thrift_connection(host, port):
     transport = TSocket.TSocket(host, port)
     transport = TTransport.TBufferedTransport(transport)
     protocol = TBinaryProtocol.TBinaryProtocol(transport)
-    client = Standard.Client(protocol)
+
+    mux_protocol =TMultiplexedProtocol(protocol, "standard")
+    client = Standard.Client(mux_protocol)
     
     transport.open()
     return client, transport
@@ -59,7 +64,7 @@ def main(thrift_port_s1, thrift_port_s2):
         start_time = time()
         while True:
             readQueueLengths(s1, 1, s1_file)  # Read queue length for port 1 on switch s1
-            readQueueLengths(s2, 2, s2_file)  # Read queue length for port 2 on switch s2
+            readQueueLengths(s2, 1, s2_file)  # Read queue length for port 2 on switch s2
             sleep(0.5)  # Sleep for a second before reading again
 
     except KeyboardInterrupt:

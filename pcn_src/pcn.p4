@@ -309,7 +309,7 @@ control MyIngress(inout headers hdr,
         // Get register position
         hash(reg_pos, HashAlgorithm.crc32, (bit<32>)0, {
             srcAddr, dstAddr, srcPort, dstPort
-        }, NUM_FLOWS);
+        }, (bit<32>)NUM_FLOWS);
     }
 
     action ipv4_forward(macAddr_t dstAddr, egreessSpec_t port) {
@@ -467,8 +467,8 @@ control MyEgress(inout headers hdr,
         queue_len.write((bit<32>)standard_metadata.ingress_port, current_len);
 
         // Compute (enq_qdepth / 6) and store lower 4 bits
-        bit<19> divided_qdepth = current_len / 6;
-        bit<4> temp_buff = (bit<4>)(divided_qdepth & 0xF);
+        // bit<19> divided_qdepth = current_len / 6;
+        // bit<4> temp_buff = (bit<4>)(divided_qdepth & 0xF);
 
         if (hdr.ipv4.diffserve[5:4]!=PCN_START) {
             pcn_port_data_t current_data;
@@ -481,7 +481,7 @@ control MyEgress(inout headers hdr,
             if (pcn_enabled == 1) {
                 if (hdr.ipv4.diffserve[5:4]!=0 && standard_metadata.enq_qdepth >= ECN_THRESHOLD){
                     mark_ecn();
-                } else if( hdr.ipv4.diffserve[5:4]==0 && standard_metadata.enq_qdepth >= current_data.threshold){
+                } else if( hdr.ipv4.diffserve[5:4]==0 && standard_metadata.enq_qdepth >= threshold){
                     mark_ecn();
                 }
             } else {
@@ -493,10 +493,10 @@ control MyEgress(inout headers hdr,
             }
 
             // Encode buffer occupancy to diffserve
-            if (hdr.ipv4.diffserve[5:4]!=0) {
+            // if (hdr.ipv4.diffserve[5:4]!=0) {
                 
-                hdr.ipv4.diffserve[3:0] = temp_buff;
-            }
+                // hdr.ipv4.diffserve[3:0] = temp_buff;
+            // }
         }
     }
 }
