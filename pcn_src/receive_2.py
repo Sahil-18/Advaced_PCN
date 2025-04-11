@@ -1,77 +1,46 @@
-from scapy.all import *
+from scapy.all import IP, UDP, Ether, sendp, sniff
 from time import sleep, time
-import random
+import threading
 from datetime import datetime
 
-src_ip = '10.0.0.7'
-dst_ip = '10.0.0.3'
+src_ip = '10.0.0.6'
+dst_ip = '10.0.0.2'
+src_mac = '08:00:00:00:00:06'
+dst_mac = '08:00:00:00:00:02'
 src_port = 1234
+dst_port = 4321
 iface = 'eth0'
+cwnd_lock = threading.Lock()
 
 class DCTCPReceiver:
     def __init__(self):
-        self.pcn_threshold = 10
-        self.file = open('buffer_position_2.csv', 'w')
-        self.iteration = 0
-        self.packets = 0
+        self.packet_count = 0
 
-    # When a packet is received, its pcn_threshold value will have its buffer position in the queue, multiply it with 3 and store it in a file.
     def handle_pkt(self, pkt):
-        # Check if the packet is PCN start packet# in IP header, TOS bits are used for PCN and ECN
-        # First two bits are used for PCN, 01 for PCN Start
-        # Next 4 bits are used for sharing the pcn_threshold
-        # Last 2 bits are used for ECN
-        # so in this case the first two bits should be 01
-        time_str = datetime.now().strftime('%H:%M:%S')
-
-        if pkt[IP].tos >> 6 == 1:
-            self.pcn_threshold = pkt[IP].tos & 0b00111100
-            self.iteration += 1
-            self.packets = 0
-
-            self.file.write(f'{self.iteration},{time_str},PCN Start,{self.packets},0, N\n')
-            # send a PCN_ACK
-            # in IP header, TOS bits are used for PCN and ECN
-            # First two bits are used for PCN, 10 for PCN ACK
-            # Next 4 bits are used for sharing the pcn_threshold
-            # Last 2 bits are used for ECN
-            # so in this case TOS will be 10+ pcn_threshold in bits + 01
-            # 10101001 = 0xa9 = 169
-            pcn_ack_pkt = Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff') / IP(src=src_ip, dst=dst_ip, tos=169) / TCP(sport=src_port, dport=pkt[TCP].sport) / 'PCN_ACK'
-            sendp(pcn_ack_pkt, iface=iface)
+        if pkt[IP].tos >> 6 == 1 and pkt[IP].src == dst_ip and pkt[IP].dst == src_ip and pkt[UDP].dport == src_port:
+            print(f"Received PCN_START packet from {pkt[IP].src} to {pkt[IP].dst}")
+            tos = 0b10000001
+            pcn_ack = Ether(src=src_mac, dst=dst_mac) / IP(src=src_ip, dst=dst_ip, tos=tos) / UDP(sport=src_port, dport=dst_port) / 'PCN_ACK'
+            sendp(pcn_ack, iface=iface)
+            print(f"Sent PCN_ACK packet to {dst_ip}")
+        elif pkt[IP].tos & 0b11 == 0b11 and pkt[IP].src == dst_ip and pkt[IP].dst == src_ip and pkt[UDP].dport == src_port:
+            print(f"Received data packet from {pkt[IP].src} to {pkt[IP].dst}")
+            self.packet_count += 1
+            print(f"Packet count: {self.packet_count}")
+            tos = 0b00000011
+            ack_pkt = Ether(src=src_mac, dst=dst_mac) / IP(src=src_ip, dst=dst_ip, tos=tos) / UDP(sport=src_port, dport=dst_port) / 'ACK'
+            sendp(ack_pkt, iface=iface)
+            print(f"Sent ACK packet to {dst_ip}")
         else:
-            self.packets += 1
-            # TOS bits are split into 3 parts for PCN, ECN and pcn_threshold
-            # First two bits are used for PCN
-            # Next 4 bits are used for sharing the pcn_threshold
-            # Last 2 bits are used for ECN
-            # extract the pcn_threshold value from the packet
-            buffer_position = ((pkt[IP].tos & 0b00111100) >> 2)*6
-            # Data packet send TCP ACK 
-            # Also check whether the packet is ECN marked i.e. ECN bits are 11 if so, the TCP flag value will be 0x40 for DCTCP ECN
-            if pkt[IP].tos & 0b00000011 == 0b11:
-                # if ecn bits are set, send a DCTCP ECN ACK
-                # in TCP header, the ECN bits are set to 11
-                # so the value will be 0x40
-                ack_pkt = Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff') / IP(src=src_ip, dst=dst_ip, tos=193) / TCP(sport=src_port, dport=pkt[TCP].sport, flags=0x40)
-                sendp(ack_pkt, iface=iface)
-                self.file.write(f'{self.iteration},{time_str},DATA,{self.packets},{buffer_position}, Y\n')
-            else:
-                ack_pkt = Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff') / IP(src=src_ip, dst=dst_ip, tos=193) / TCP(sport=src_port, dport=pkt[TCP].sport)
-                sendp(ack_pkt, iface=iface)
-                self.file.write(f'{self.iteration},{time_str},DATA,{self.packets},{buffer_position}, N\n')
-    
+            print(f"Received unknown packet from {pkt[IP].src} to {pkt[IP].dst}")
+            ack_pkt = Ether(src=src_mac, dst=dst_mac) / IP(src=src_ip, dst=dst_ip) / UDP(sport=src_port, dport=dst_port) / 'ACK'
+            sendp(ack_pkt, iface=iface)
+            print(f"Sent ACK packet to {dst_ip}")
+            self.packet_count += 1
+
     def receive_packets(self):
-        # File will have following information in each line
-        # Iteration, Packet Number and Buffer Position
-        # Buffer position is calculated by multiplying pcn_threshold with 3
-        self.file.write('Iteration, Time (in HH:MM:SS), Packet Type,Packet Number,Buffer Position, Congestion\n')
-        try: 
-            while True:
-                sniff(filter='tcp and port 1234', prn=self.handle_pkt)
-        # Close file when keyboard interrupt is received
-        except KeyboardInterrupt:
-            self.file.close()
+        while True:
+            sniff(filter='udp and dst port 4321', prn=self.handle_pkt, count=1)
 
 if __name__ == '__main__':
     receiver = DCTCPReceiver()
