@@ -1,4 +1,4 @@
-from scapy.all import *
+from scapy.all import IP, TCP, Ether, sendp, get_if_hwaddr, sniff
 from time import sleep, time
 import random
 import threading
@@ -6,7 +6,7 @@ from datetime import datetime
 
 src_ip = '10.0.0.2'
 dst_ip = '10.0.0.6'
-rc_port = random.randint(49152, 65535)
+src_port = random.randint(49152, 65535)
 dst_port = 1234
 iface = 'eth0'
 
@@ -21,13 +21,14 @@ class DCTCPControllerWithPCN:
         self.pcn_threshold = 10
         self.sent_packets = 0
         self.acked_packets = 0
-        self.total = 250 * 1024 * 1024
+        self.total = 250 * 1024
         self.wait = 0
         self.file = file
         self.iter = 0
+        self.end_ack_thread = False
 
     def handle_ack_pkt(self, pkt):
-        if pkt[TCP].dport == rc_port and pkt[TCP].sport == dst_port:
+        if pkt[IP].src == dst_ip and pkt[IP].dst == src_ip and pkt[TCP].dport == src_port and pkt[TCP].sport == dst_port:
             # Check if the packet has DCTCP ecn bits set for congestion notification
             # usually 
             if pkt[TCP].flags & 0x40:
@@ -41,10 +42,11 @@ class DCTCPControllerWithPCN:
                 self.cwnd = min(self.max_cwnd, self.cwnd + 1)
                 cwnd_lock.release()
             self.acked_packets += 1
+            print(f'ACK received for packet {self.acked_packets}, cwnd: {self.cwnd}, total: {self.total}')
 
     def handle_ack(self):
-        while True:
-            sniff(filter='tcp and port 1234', prn=self.handle_ack_pkt)
+        while self.end_ack_thread == False:
+            sniff(filter=f'tcp and port {src_port}', prn=self.handle_ack_pkt, timeout=2)
 
     def send_data_packets(self):
         # send packets with total data of 250 MB
@@ -61,8 +63,9 @@ class DCTCPControllerWithPCN:
             # send a packet
             data_len = min(1460, self.total)
             self.total -= data_len
-            pkt = Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff') / IP(src=src_ip, dst=dst_ip, tos=193) / TCP(sport=rc_port, dport=dst_port) / ('A' * data_len)
+            pkt = Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff') / IP(src=src_ip, dst=dst_ip, tos=193) / TCP(sport=src_port, dport=dst_port) / ('A' * data_len)
             sendp(pkt, iface=iface)
+            print(f'Sent packet with TOS: {pkt[IP].tos}, Data Length: {data_len}, Total: {self.total}')
             cwnd_lock.acquire()
             self.cwnd -= 1
             self.sent_packets += 1
@@ -75,10 +78,16 @@ class DCTCPControllerWithPCN:
         # check if the IP tos bit has 10 in the first two bits
         # if it does, then it is a PCN_ACK
         # also check if the tcp port as same as the one we sent the packet to
-        if pkt[IP].tos >> 6 == 2 and pkt[TCP].dport == rc_port and pkt[TCP].sport == dst_port:
-            return
-        else :
-            sniff(filter='tcp and port 1234', prn=self.handle_pcn_ack, timeout=2)
+        return pkt[IP].tos >> 6 == 2 and pkt[IP].src == dst_ip and pkt[IP].dst == src_ip and pkt[TCP].dport == src_port and pkt[TCP].sport == dst_port
+    
+    def wait_for_pcn_ack(self):
+        while True:
+            print('Waiting for PCN_ACK...')
+            pkt = sniff(filter=f'tcp and port {src_port}', count=1, timeout=2)
+            if pkt and self.handle_pcn_ack(pkt[0]):
+                print('Received PCN_ACK')
+                break
+
 
     def send_pcn_start(self):
         # in IP header, TOS bits are used for PCN and ECN
@@ -87,12 +96,13 @@ class DCTCPControllerWithPCN:
         # Last 2 bits are used for ECN
         # so in this case TOS will be 01+ pcn_threshold in bits + 01
         # 01011101 = 0x5D = 93
-        pcn_start_pkt = Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff') / IP(src=src_ip, dst=dst_ip, tos=93) / TCP(sport=rc_port, dport=dst_port) / 'PCN_START'
+        pcn_start_pkt = Ether(src=get_if_hwaddr(iface), dst='ff:ff:ff:ff:ff:ff') / IP(src=src_ip, dst=dst_ip, tos=93) / TCP(sport=src_port, dport=dst_port) / 'PCN_START'
         sendp(pcn_start_pkt, iface=iface)
+        print(f'Sent PCN_START packet with TOS: {pcn_start_pkt[IP].tos}')
         time_str = datetime.now().strftime('%H:%M:%S')
         self.file.write(f'{self.iter},{time_str},{self.sent_packets},PCN Start,{self.cwnd},{self.total},,,\n')
         # sniff the network for PCN_ACK
-        sniff(filter='tcp and port 1234', prn=self.handle_pcn_ack, timeout=2)
+        self.wait_for_pcn_ack()
 
     def send_data(self):
         self.iter += 1
@@ -100,8 +110,9 @@ class DCTCPControllerWithPCN:
         self.acked_packets = 0
         self.sent_packets = 0
         self.cwnd = 10
-        self.total = 250 * 1024 * 1024
+        self.total = 250 * 1024
         self.send_pcn_start()
+        self.end_ack_thread = False
         ack_thread = threading.Thread(target=self.handle_ack)
         ack_thread.start()
         self.send_data_packets()
@@ -110,18 +121,20 @@ class DCTCPControllerWithPCN:
                 break
             self.wait += 1
             sleep(0.1)
+        self.end_ack_thread = True
+        ack_thread.join()
 
 
 def worker_node_loop():
     # Create a csv file to store start time, end time and total time for each iteration 
     # Open a file in write mode
-    file = open('worker_node_1.csv', 'w')
+    file = open('worker_node_2.csv', 'w')
     file.write('Iteration, Time (HH:MM:SS), Packet Number, Packet Type, Congestion Window, Total Bytes Sent, Total Time (Sec), Start Time, End Time\n')
     controller = DCTCPControllerWithPCN(file, 0)
-    for i in range(10):
+    for i in range(1):
         # Save start time and end time in the csv file using hh:mm:ss format
         # but save the total time in seconds
-        start_time = time.time()
+        start_time = time()
         start_time_str = datetime.now().strftime('%H:%M:%S')
         controller.send_data()
         end_time = time()
