@@ -1,4 +1,4 @@
-from scapy.all import IP, TCP, Ether, sendp, get_if_hwaddr, sniff
+from scapy.all import *
 from time import sleep, time
 import random
 from datetime import datetime
