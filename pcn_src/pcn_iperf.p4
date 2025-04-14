@@ -12,8 +12,11 @@ const bit<8> TCP_PROTOCOL = 0x06;
 const bit<16> TYPE_IPV4 = 0x800;
 const bit<8>  TYPE_TCP  = 6;
 const bit<19> ECN_THRESHOLD = 40;
-const bit<2> PCN_START = 0x01;
-const bit<2> PCN_RESET = 0x03;
+const bit<32> FLOW1 = 0x0a000002;
+const bit<32> FLOW2 = 0x0a000003;
+
+const bit<32> FLOW1_IDX = 0;
+const bit<32> FLOW2_IDX = 1;
 
 // constants for number of ports and number of flows
 #define MAX_PORTS 8
@@ -24,7 +27,7 @@ const bit<2> PCN_RESET = 0x03;
 
 #define THRESHOLD_SCHEME 1
 
-/*************************************************************************
+*************************************************************************
 *********************** H E A D E R S  ***********************************
 *************************************************************************/
 
@@ -42,10 +45,6 @@ header ethernet_t {
     bit<16> etherType;
 }
 
-/*
- * IPv4: TOS field is split to two fields 6 bit diffserve and 2 bit ecn
- * diffserve can then be used to represent 2 bit for pcn and 4 bit for threshold
- */
 header ipv4_t {
     bit<4>    version;
     bit<4>    ihl;
@@ -118,13 +117,15 @@ pcn_port_data[20:35] = number_of_flows
 Define a single register to store flow details
 struct flow_key_t {
     bit<1> flag;
+}
+
+so flow_key register will be of size 1
+
+struct flow_thresh_t {
     bit<19> threshold;
 }
 
-so flow_key register will be of size (1 + 19) = 20
-with structure as 
-flow_key[0] = flag
-flow_key[1:19] = threshold
+so flow_thresh register will be of size 19
 
 Define register to store ingress queue length for pakcets
 struct queue_len_t{
@@ -137,6 +138,7 @@ queue_length
 
 register<pcn_port_data_t>(MAX_PORTS) pcn_port_data;
 register<flow_key_t>(NUM_FLOWS) flow_key;
+register<flow_thresh_t>(NUM_FLOWS) flow_key;
 register<queue_len_t>(MAX_PORTS) queue_len;
 
 /*************************************************************************
@@ -192,15 +194,6 @@ control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata){
 
-    bit<32> reg_pos;
-    bit<2> pcn;
-    bit<19> threshold;
-
-    action extract_pcn_threshold() {
-        pcn = hdr.ipv4.diffserve[5:4];
-        threshold = (bit<19>)hdr.ipv4.diffserve[3:0]*3;
-    }
-
     action drop(){
         mark_to_drop(standard_metadata);
     }               
@@ -230,121 +223,120 @@ control MyIngress(inout headers hdr,
         size = 1024;
         default_action = drop;
     }
+    
+    apply{
+        if (hdr.ipv4.isValud() && hdr.tcp.isValid()){
 
-    apply {
-        if (hdr.ipv4.isValid() && hdr.tcp.isValid()) {
-            extract_pcn_threshold();
-            
-            // Compute hash
-
-            compute_hash(hdr.ipv4.srcAddr, hdr.ipv4.dstAddr, hdr.tcp.srcPort, hdr.tcp.dstPort);
-
-            //pcn specific logic
-            /* Since P4 does not allow read and write of registers from action which is 
-                conditionally applied, all conditional logic of handling PCN_START and PCN_RESET
-                will be written here only */
-
-            if (pcn == PCN_START) {
-                
-                pcn_port_data_t current_data;
-                pcn_port_data.read(current_data, (bit<32>)standard_metadata.ingress_port);
-
-                // unmaksing the fields
-                bit<1> pcn_enabled = (bit<1>)(current_data >> 35);
-                bit<19> threshold_stored = (bit<19>)((current_data >> 16) & 0x7FFFF);
-                bit<16> num_flows = (bit<16>)(current_data & 0xFFFF);
-
-                num_flows = num_flows + 1;
-
-                if (pcn_enabled == 0) {
-                    pcn_enabled = 1;
-                    threshold_stored = threshold;
-                } else {
-                    if (THRESHOLD_SCHEME == MIN_THRESHOLD) {
-                        // use of minimum of current_data.threshold and threshold
-                        if (threshold_stored > threshold) {
-                            threshold_stored = threshold;
-                        }
-                    } else if (THRESHOLD_SCHEME == HARMONIC_THRESHOLD) {
-                        // Approximate using interger math to avoid divide-by-zero
-                        bit<32> inv_sum = (bit<32>)(1 << 16) / threshold + (bit<32>)(1 << 16) / threshold_stored;
-                        threshold_stored = (bit<19>)((1 << 16) / inv_sum);
-                    }
+            // check for PCN flows
+            if(hdr.ipv4.srcAddr == FLOW1 || hdr.ipv4.srcAddr == FLOW2){
+                bit<32> pos;
+                if(hdr.ipv4.srcAddr == FLOW1){
+                    pos = FLOW1_IDX;
+                }else{
+                    pos = FLOW2_IDX;
                 }
 
-                // Repack everything
-                current_data = ((pcn_port_data_t)pcn_enabled << 35) |
-                                ((pcn_port_data_t)threshold_stored << 16) |
-                                (pcn_port_data_t)num_flows;
+                // PCN START if TCP SYN is true
+                if(hdr.tcp.syn == 1){
+                    flow_thresh_t threshold;
+                    flow_thresh.read(threshold, pos);
 
-                pcn_port_data.write((bit<32>)standard_metadata.ingress_port, current_data);
-                
-                flow_key_t current_flow;
-
-                // set fields
-                bit<1> flag = 1;
-                bit<19> threshold_flow = threshold;
-                
-                // pack
-                current_flow = ((flow_key_t)flag << 19) | (flow_key_t)threshold_flow;
-
-                flow_key.write(reg_pos, current_flow);
-
-            }
-            else if(pcn == PCN_RESET) {
-
-                flow_key_t current_flow;
-                flow_key.read(current_flow, reg_pos);
-
-                // Unpack flow_key
-                bit<1> flag = (bit<1>)(current_flow >> 19);
-                bit<19> threshold_stored = (bit<19>)(current_flow & 0x7FFFF);
-
-                threshold = threshold_stored;
-
-                if (flag == 1) {
-                    // Clear flow_key by writing all zeroes
-                    flow_key.write(reg_pos, (flow_key_t)0);
-
-                    // Update PCN port data
                     pcn_port_data_t current_data;
                     pcn_port_data.read(current_data, (bit<32>)standard_metadata.ingress_port);
 
-                    // Unpack pcn_port_data
+                    // unmaksing the fields
                     bit<1> pcn_enabled = (bit<1>)(current_data >> 35);
-                    bit<19> current_threshold = (bit<19>)((current_data >> 16) & 0x7FFFF);
+                    bit<19> threshold_stored = (bit<19>)((current_data >> 16) & 0x7FFFF);
                     bit<16> num_flows = (bit<16>)(current_data & 0xFFFF);
 
-                    // Decrement flow count
-                    num_flows = num_flows - 1;
-                    if (num_flows == 0) {
-                        pcn_enabled = 0;
-                        current_threshold = ECN_THRESHOLD;
-                    } else {
-                        if (THRESHOLD_SCHEME == HARMONIC_THRESHOLD) {
-                            // Inverse subtraction
-                            bit<32> inv_old = (1 << 16)/current_threshold;
-                            bit<32> inv_removed = (1 << 16)/threshold_stored;
-                            bit<32> inv_new = inv_old - inv_removed;
+                    num_flows = num_flows + 1;
 
-                            if (inv_new > 0) {
-                                current_threshold = (bit<19>)((1 << 16)/inv_new);
-                            } else {
-                                current_threshold = ECN_THRESHOLD;
+                    if(pcn_enabled == 0){
+                        pcn_enabled = 1;
+                        threshold_stored = threshold;
+                    } else {
+                        if (THRESHOLD_SCHEME == MIN_THRESHOLD) {
+                            // use of minimum of current_data.threshold and threshold
+                            if (threshold_stored > threshold) {
+                                threshold_stored = threshold;
                             }
+                        } else if (THRESHOLD_SCHEME == HARMONIC_THRESHOLD) {
+                            // Approximate using interger math to avoid divide-by-zero
+                            bit<32> inv_sum = (bit<32>)(1 << 16) / threshold + (bit<32>)(1 << 16) / threshold_stored;
+                            threshold_stored = (bit<19>)((1 << 16) / inv_sum);
                         }
                     }
 
-                    // Repack PCN port data
+                    // Repack everything
                     current_data = ((pcn_port_data_t)pcn_enabled << 35) |
-                                    ((pcn_port_data_t)current_threshold << 16) |
+                                    ((pcn_port_data_t)threshold_stored << 16) |
                                     (pcn_port_data_t)num_flows;
 
                     pcn_port_data.write((bit<32>)standard_metadata.ingress_port, current_data);
-                }                
+                    
+                    flow_key_t current_flow;
+
+                    // set fields
+                    current_flow = 1;
+                    flow_key.write(pos, current_flow);
+
+                } else if (hdr.tcp.ack == 1) {
+                    // PCN START if TCP SYN is true
+
+                    flow_key_t current_flow;
+                    flow_key.read(current_flow, pos);
+
+                    if (current_flow == 1) {
+                        flow_thresh_t threshold;
+                        flow_thresh.read(threshold, pos);
+
+                        current_flow = 0;
+
+                        // Write flow info
+                        flow_key.write(pos, current_flow);
+
+                        // Update PCN port data
+                        pcn_port_data_t current_data;
+                        pcn_port_data.read(current_data, (bit<32>)standard_metadata.ingress_port);
+
+                        // Unpack pcn_port_data
+                        bit<1> pcn_enabled = (bit<1>)(current_data >> 35);
+                        bit<19> current_threshold = (bit<19>)((current_data >> 16) & 0x7FFFF);
+                        bit<16> num_flows = (bit<16>)(current_data & 0xFFFF);
+
+                        // Decrement flow count
+                        num_flows = num_flows - 1;
+                        
+                        if (num_flows == 0) {
+                            pcn_enabled = 0;
+                            current_threshold = ECN_THRESHOLD;
+                        } else {
+                            if (THRESHOLD_SCHEME == HARMONIC_THRESHOLD) {
+                                // Inverse subtraction
+                                bit<32> inv_old = (1 << 16)/current_threshold;
+                                bit<32> inv_removed = (1 << 16)/threshold;
+                                bit<32> inv_new = inv_old - inv_removed;
+
+                                if (inv_new > 0) {
+                                    current_threshold = (bit<19>)((1 << 16)/inv_new);
+                                } else {
+                                    current_threshold = ECN_THRESHOLD;
+                                }
+                            }
+                        }
+
+                        // Repack PCN port data
+                        current_data = ((pcn_port_data_t)pcn_enabled << 35) |
+                                        ((pcn_port_data_t)current_threshold << 16) |
+                                        (pcn_port_data_t)num_flows;
+
+                        pcn_port_data.write((bit<32>)standard_metadata.ingress_port, current_data);
+
+                    }
+                }
             }
 
-            ipv4_exact.apply();
+            ipv4_exact.appy();
         }
     }
 }
@@ -360,44 +352,39 @@ control MyEgress(inout headers hdr,
     action mark_ecn(){
         hdr.ipv4.ecn = 3;
     }
-
+    
     apply {
+
         queue_len_t current_len;
         current_len = standard_metadata.enq_qdepth;
         queue_len.write((bit<32>)standard_metadata.ingress_port, current_len);
 
-        // Compute (enq_qdepth / 6) and store lower 4 bits
-        // bit<19> divided_qdepth = current_len / 6;
-        // bit<4> temp_buff = (bit<4>)(divided_qdepth & 0xF);
+        pcn_port_data_t current_data;
+        pcn_port_data.read(current_data, (bit<32>)standard_metadata.ingress_port);
 
-        if (hdr.ipv4.diffserve[5:4]!=PCN_START) {
-            pcn_port_data_t current_data;
-            pcn_port_data.read(current_data, (bit<32>)standard_metadata.ingress_port);
-            
-            // Unpacke fields
-            bit<1> pcn_enabled = (bit<1>)(current_data >> 35);
-            bit<19> threshold = (bit<19>)((current_data >> 16) & 0x7FFFF);
+        // Unpacke fields
+        bit<1> pcn_enabled = (bit<1>)(current_data >> 35);
+        bit<19> threshold = (bit<19>)((current_data >> 16) & 0x7FFFF);
 
-            if (pcn_enabled == 1) {
-                if (hdr.ipv4.diffserve[5:4]!=0 && standard_metadata.enq_qdepth >= ECN_THRESHOLD){
-                    mark_ecn();
-                } else if( hdr.ipv4.diffserve[5:4]==0 && standard_metadata.enq_qdepth >= threshold){
+        if (pcn_enabled ==1) {
+            if (hdr.ipv4.srcAddr == FLOW1 || hdr.ipv4.srcAddr == FLOW2) {
+                if(hdr.tcp.syn == 0 && queue_len >= ECN_THRESHOLD) {
                     mark_ecn();
                 }
             } else {
-                if(hdr.ipv4.ecn == 1 || hdr.ipv4.ecn == 2){
-                    if(standard_metadata.enq_qdepth >= ECN_THRESHOLD){
-                        mark_ecn();
-                    }
+                if (queue_len >= threshold) {
+                    mark_ecn();
                 }
             }
 
-            // Encode buffer occupancy to diffserve
-            // if (hdr.ipv4.diffserve[5:4]!=0) {
-                
-                // hdr.ipv4.diffserve[3:0] = temp_buff;
-            // }
+        } else {
+            if (hdr.ipv4.ecn == 1 || hdr.ipv4.ecn ==2) {
+                if (current_len > ECN_THRESHOLD) {
+                    mark_ecn();
+                }
+            }
         }
+
     }
 }
 
@@ -446,10 +433,10 @@ control MyDeparser(packet_out packet, in headers hdr) {
 *************************************************************************/
 
 V1Switch(
-MyParser(),
-MyVerifyChecksum(),
-MyIngress(),
-MyEgress(),
-MyComputeChecksum(),
-MyDeparser()
+    MyParser(),
+    MyVerifyChecksum(),
+    MyIngress(),
+    MyEgress(),
+    MyComputeChecksum(),
+    MyDeparser()
 ) main;
