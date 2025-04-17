@@ -27,7 +27,7 @@ const bit<32> FLOW2_IDX = 1;
 
 #define THRESHOLD_SCHEME 1
 
-*************************************************************************
+/*************************************************************************
 *********************** H E A D E R S  ***********************************
 *************************************************************************/
 
@@ -36,8 +36,9 @@ typedef bit<48> macAddr_t;
 typedef bit<32> ip4Addr_t;
 
 typedef bit<36> pcn_port_data_t;
-typedef bit<20> flow_key_t;
+typedef bit<1> flow_key_t;
 typedef bit<19> queue_len_t;
+typedef bit<19> flow_thresh_t;
 
 header ethernet_t {
     macAddr_t dstAddr;
@@ -138,7 +139,7 @@ queue_length
 
 register<pcn_port_data_t>(MAX_PORTS) pcn_port_data;
 register<flow_key_t>(NUM_FLOWS) flow_key;
-register<flow_thresh_t>(NUM_FLOWS) flow_key;
+register<flow_thresh_t>(NUM_FLOWS) flow_thresh;
 register<queue_len_t>(MAX_PORTS) queue_len;
 
 /*************************************************************************
@@ -198,13 +199,6 @@ control MyIngress(inout headers hdr,
         mark_to_drop(standard_metadata);
     }               
 
-    action compute_hash(ip4Addr_t srcAddr, ip4Addr_t dstAddr, bit<16> srcPort, bit<16> dstPort) {
-        // Get register position
-        hash(reg_pos, HashAlgorithm.crc32, (bit<32>)0, {
-            srcAddr, dstAddr, srcPort, dstPort
-        }, (bit<32>)NUM_FLOWS);
-    }
-
     action ipv4_forward(macAddr_t dstAddr, egreessSpec_t port) {
         standard_metadata.egress_spec = port;
         hdr.ethernet.srcAddr = hdr.ethernet.dstAddr;
@@ -225,7 +219,7 @@ control MyIngress(inout headers hdr,
     }
     
     apply{
-        if (hdr.ipv4.isValud() && hdr.tcp.isValid()){
+        if (hdr.ipv4.isValid() && hdr.tcp.isValid()){
 
             // check for PCN flows
             if(hdr.ipv4.srcAddr == FLOW1 || hdr.ipv4.srcAddr == FLOW2){
@@ -309,7 +303,7 @@ control MyIngress(inout headers hdr,
                         
                         if (num_flows == 0) {
                             pcn_enabled = 0;
-                            current_threshold = ECN_THRESHOLD;
+                            current_threshold = 0;
                         } else {
                             if (THRESHOLD_SCHEME == HARMONIC_THRESHOLD) {
                                 // Inverse subtraction
@@ -320,7 +314,7 @@ control MyIngress(inout headers hdr,
                                 if (inv_new > 0) {
                                     current_threshold = (bit<19>)((1 << 16)/inv_new);
                                 } else {
-                                    current_threshold = ECN_THRESHOLD;
+                                    current_threshold = 0;
                                 }
                             }
                         }
@@ -336,7 +330,7 @@ control MyIngress(inout headers hdr,
                 }
             }
 
-            ipv4_exact.appy();
+            ipv4_exact.apply();
         }
     }
 }
@@ -368,11 +362,11 @@ control MyEgress(inout headers hdr,
 
         if (pcn_enabled ==1) {
             if (hdr.ipv4.srcAddr == FLOW1 || hdr.ipv4.srcAddr == FLOW2) {
-                if(hdr.tcp.syn == 0 && queue_len >= ECN_THRESHOLD) {
+                if(hdr.tcp.syn == 0 && current_len >= ECN_THRESHOLD) {
                     mark_ecn();
                 }
             } else {
-                if (queue_len >= threshold) {
+                if (current_len >= threshold) {
                     mark_ecn();
                 }
             }
