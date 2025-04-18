@@ -244,11 +244,10 @@ control MyIngress(inout headers hdr,
                     pcn_port_data.read(current_data, (bit<32>)standard_metadata.ingress_port);
 
                     pcn_port_thresh_t current_thresh;
-                    pcn_port_data.read(current_data, (bit<32>)standard_metadata.ingress_port);
+                    pcn_port_thresh.read(current_thresh, (bit<32>)standard_metadata.ingress_port);
 
-                    current_data = current_data + 1;
 
-                    if(current_data == 1){
+                    if(current_data == 0){
                         current_thresh = threshold;
                     } else {
                         if (THRESHOLD_SCHEME == MIN_THRESHOLD) {
@@ -262,6 +261,8 @@ control MyIngress(inout headers hdr,
                             current_thresh = (bit<19>)((1 << 16) / inv_sum);
                         }
                     }
+
+                    current_data = current_data + 1;
 
                     pcn_port_data.write((bit<32>)standard_metadata.ingress_port, current_data);
                     pcn_port_thresh.write((bit<32>)standard_metadata.ingress_port, current_thresh);
@@ -292,13 +293,13 @@ control MyIngress(inout headers hdr,
                         pcn_port_data.read(current_data, (bit<32>)standard_metadata.ingress_port);
 
                         pcn_port_thresh_t current_thresh;
-                        pcn_port_data.read(current_data, (bit<32>)standard_metadata.ingress_port);
+                        pcn_port_thresh.read(current_thresh, (bit<32>)standard_metadata.ingress_port);
 
                         // Decrement flow count
                         current_data = current_data - 1;
                         
                         if (current_data == 0) {
-                            current_thresh = 0;
+                            current_thresh = ECN_THRESHOLD;
                         } else {
                             if (THRESHOLD_SCHEME == HARMONIC_THRESHOLD) {
                                 // Inverse subtraction
@@ -309,7 +310,7 @@ control MyIngress(inout headers hdr,
                                 if (inv_new > 0) {
                                     current_thresh = (bit<19>)((1 << 16)/inv_new);
                                 } else {
-                                    current_thresh = 0;
+                                    current_thresh = ECN_THRESHOLD;
                                 }
                             }
                         }
@@ -348,7 +349,7 @@ control MyEgress(inout headers hdr,
         pcn_port_data.read(current_data, (bit<32>)standard_metadata.ingress_port);
 
         pcn_port_thresh_t current_thresh;
-        pcn_port_data.read(current_data, (bit<32>)standard_metadata.ingress_port);
+        pcn_port_thresh.read(current_thresh, (bit<32>)standard_metadata.ingress_port);
 
         if (current_data > 0) {
             if (hdr.ipv4.srcAddr == FLOW1 || hdr.ipv4.srcAddr == FLOW2) {
