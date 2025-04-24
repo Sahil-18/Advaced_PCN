@@ -237,43 +237,47 @@ control MyIngress(inout headers hdr,
 
                 // PCN START if TCP SYN is true
                 if(hdr.tcp.syn == 1){
-                    flow_thresh_t threshold;
-                    flow_thresh.read(threshold, pos);
 
-                    pcn_port_data_t current_data;
-                    pcn_port_data.read(current_data, (bit<32>)standard_metadata.ingress_port);
-
-                    pcn_port_thresh_t current_thresh;
-                    pcn_port_thresh.read(current_thresh, (bit<32>)standard_metadata.ingress_port);
-
-
-                    if(current_data == 0){
-                        current_thresh = threshold;
-                    } else {
-                        if (THRESHOLD_SCHEME == MIN_THRESHOLD) {
-                            // use of minimum of current_data.threshold and threshold
-                            if (current_thresh > threshold) {
-                                current_thresh = threshold;
-                            }
-                        } else if (THRESHOLD_SCHEME == HARMONIC_THRESHOLD) {
-                            // Approximate using interger math to avoid divide-by-zero
-                            bit<32> inv_sum = (bit<32>)(1 << 16) / threshold + (bit<32>)(1 << 16) / current_thresh;
-                            current_thresh = (bit<19>)((1 << 16) / inv_sum);
-                        }
-                    }
-
-                    current_data = current_data + 1;
-
-                    pcn_port_data.write((bit<32>)standard_metadata.ingress_port, current_data);
-                    pcn_port_thresh.write((bit<32>)standard_metadata.ingress_port, current_thresh);
-                    
                     flow_key_t current_flow;
+                    flow_key.read(current_flow, pos);
 
-                    // set fields
-                    current_flow = 1;
-                    flow_key.write(pos, current_flow);
+                    if (current_flow == 0) {
+                        flow_thresh_t threshold;
+                        flow_thresh.read(threshold, pos);
 
-                } else if (hdr.tcp.ack == 1) {
+                        pcn_port_data_t current_data;
+                        pcn_port_data.read(current_data, (bit<32>)standard_metadata.ingress_port);
+
+                        pcn_port_thresh_t current_thresh;
+                        pcn_port_thresh.read(current_thresh, (bit<32>)standard_metadata.ingress_port);
+
+
+                        if(current_data == 0){
+                            current_thresh = threshold;
+                        } else {
+                            if (THRESHOLD_SCHEME == MIN_THRESHOLD) {
+                                // use of minimum of current_data.threshold and threshold
+                                if (current_thresh > threshold) {
+                                    current_thresh = threshold;
+                                }
+                            } else if (THRESHOLD_SCHEME == HARMONIC_THRESHOLD) {
+                                // Approximate using interger math to avoid divide-by-zero
+                                bit<19> base = (bit<19>)(1 << 16);
+                                bit<19> inv_sum = base / threshold + base / current_thresh;
+                                current_thresh = base / inv_sum;
+                            }
+                        }
+
+                        current_data = current_data + 1;
+
+                        pcn_port_data.write((bit<32>)standard_metadata.ingress_port, current_data);
+                        pcn_port_thresh.write((bit<32>)standard_metadata.ingress_port, current_thresh);
+
+                        current_flow = 1;
+                        flow_key.write(pos, current_flow);
+                    }
+                    
+                } else if (hdr.tcp.fin == 1) {
                     // PCN START if TCP SYN is true
 
                     flow_key_t current_flow;
@@ -303,12 +307,13 @@ control MyIngress(inout headers hdr,
                         } else {
                             if (THRESHOLD_SCHEME == HARMONIC_THRESHOLD) {
                                 // Inverse subtraction
-                                bit<32> inv_old = (1 << 16)/current_thresh;
-                                bit<32> inv_removed = (1 << 16)/threshold;
-                                bit<32> inv_new = inv_old - inv_removed;
+                                 bit<19> base = (bit<19>)(1 << 16);
+                                bit<19> inv_old = base /current_thresh;
+                                bit<19> inv_removed = base /threshold;
+                                bit<19> inv_new = inv_old - inv_removed;
 
                                 if (inv_new > 0) {
-                                    current_thresh = (bit<19>)((1 << 16)/inv_new);
+                                    current_thresh = base/inv_new;
                                 } else {
                                     current_thresh = ECN_THRESHOLD;
                                 }
