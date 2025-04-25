@@ -8,6 +8,11 @@ table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.7 => 08:00:00:00:00
 table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.8 => 08:00:00:00:00:08 1
 register_write flow_thresh 0 20
 register_write flow_thresh 1 20
+register_write pcn_port_data 1 0
+register_write pcn_port_data 2 0
+register_write pcn_port_data 3 0
+register_write pcn_port_data 4 0
+register_write pcn_port_data 5 0
 set_queue_depth 100
 register_write inverse_thresh 1 100
 register_write inverse_thresh 2 50
