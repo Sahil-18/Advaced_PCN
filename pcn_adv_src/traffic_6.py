@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 
 # configuration
-SERVER_IP = "10.0.0.6"
+SERVER_IP = "10.0.0.12"
 ITERATION = 5
 SLEEP_DURATION = 5
 DATA_SEND = "10M"

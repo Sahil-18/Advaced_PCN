@@ -6,9 +6,9 @@ from datetime import datetime
 
 # configuration
 SERVER_IP = "10.0.0.7"
-ITERATION = 10
-SLEEP_DURATION = 7
-DATA_SEND = "250M"
+ITERATION = 5
+SLEEP_DURATION = 5
+DATA_SEND = "10M"
 OUTPUT_DIR = Path("./Results/Traffic2")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 SUMMARY_FILE = OUTPUT_DIR / "summary.csv"

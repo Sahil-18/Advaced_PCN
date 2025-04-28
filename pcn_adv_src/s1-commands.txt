@@ -1,0 +1,60 @@
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.1 => 08:00:00:00:00:01 2
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.2 => 08:00:00:00:00:02 2
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.3 => 08:00:00:00:00:03 2
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.4 => 08:00:00:00:00:04 3
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.5 => 08:00:00:00:00:05 3
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.6 => 08:00:00:00:00:06 3
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.7 => 08:00:00:00:00:07 1
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.8 => 08:00:00:00:00:08 1
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.9 => 08:00:00:00:00:09 1
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.10 => 08:00:00:00:00:0a 1
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.11 => 08:00:00:00:00:0b 1
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.12 => 08:00:00:00:00:0c 1 
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.13 => 08:00:00:00:00:0d 2
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.14 => 08:00:00:00:00:0e 2
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.15 => 08:00:00:00:00:0f 3
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.16 => 08:00:00:00:00:f1 3
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.17 => 08:00:00:00:00:f2 1
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.18 => 08:00:00:00:00:f3 1
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.19 => 08:00:00:00:00:f4 1
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.20 => 08:00:00:00:00:f5 1
+register_write flow_thresh 0 20
+register_write flow_thresh 1 20
+register_write flow_thresh 2 20
+register_write flow_thresh 3 20
+register_write flow_thresh 4 20
+register_write flow_thresh 5 20
+register_write pcn_port_data 1 0
+register_write pcn_port_data 2 0
+register_write pcn_port_data 3 0
+register_write pcn_port_data 4 0
+register_write pcn_port_data 5 0
+register_write pcn_port_data 6 0
+set_queue_depth 100
+register_write inverse_thresh 1 100
+register_write inverse_thresh 2 50
+register_write inverse_thresh 3 33
+register_write inverse_thresh 4 25
+register_write inverse_thresh 5 20
+register_write inverse_thresh 6 16
+register_write inverse_thresh 7 14
+register_write inverse_thresh 8 12
+register_write inverse_thresh 9 11
+register_write inverse_thresh 10 10
+register_write inverse_thresh 15 7
+register_write inverse_thresh 20 5
+register_write inverse_thresh 25 4
+register_write inverse_thresh 30 3
+register_write inverse_thresh 35 3
+register_write inverse_thresh 40 2
+register_write inverse_thresh 45 2
+register_write inverse_thresh 50 2
+register_write inverse_thresh 55 2
+register_write inverse_thresh 60 2
+register_write inverse_thresh 65 2
+register_write inverse_thresh 70 2
+register_write inverse_thresh 75 1
+register_write inverse_thresh 80 1
+register_write inverse_thresh 85 1
+register_write inverse_thresh 90 1
+register_write inverse_thresh 95 1
