@@ -263,12 +263,12 @@ control MyIngress(inout headers hdr,
                                 }
                             } else if (THRESHOLD_SCHEME == HARMONIC_THRESHOLD) {
                                 bit<19> inv_curr_thresh;
-                                inverse_thresh.read(inv_curr_thresh, current_thresh);
+                                inverse_thresh.read(inv_curr_thresh, (bit<32>)current_thresh);
                                 bit<19> threshold_k = K * threshold;
                                 bit<19> inv_thresh;
-                                inverse_thresh.read(inv_thresh, threshold_k);
+                                inverse_thresh.read(inv_thresh, (bit<32>)threshold_k);
                                 inv_curr_thresh = inv_curr_thresh + inv_thresh;
-                                inverse_thresh.read(current_thresh, inv_curr_thresh);
+                                inverse_thresh.read(current_thresh, (bit<32>)inv_curr_thresh);
                             }
                         }
 
@@ -282,7 +282,7 @@ control MyIngress(inout headers hdr,
                         flow_key.write(pos, current_flow);
                     }
 
-                } else if (hdr.tcp.ack == 1) {
+                } else if (hdr.tcp.fin == 1) {
 
                     flow_key_t current_flow;
                     flow_key.read(current_flow, pos);
@@ -311,12 +311,12 @@ control MyIngress(inout headers hdr,
                         } else {
                             if (THRESHOLD_SCHEME == HARMONIC_THRESHOLD) {
                                 bit<19> inv_curr_thresh;
-                                inverse_thresh.read(inv_curr_thresh, current_thresh);
+                                inverse_thresh.read(inv_curr_thresh, (bit<32>)current_thresh);
                                 bit<19> threshold_k = K * threshold;
                                 bit<19> inv_thresh;
-                                inverse_thresh.read(inv_thresh, threshold_k);
+                                inverse_thresh.read(inv_thresh, (bit<32>)threshold_k);
                                 inv_curr_thresh = inv_curr_thresh - inv_thresh;
-                                inverse_thresh.read(current_thresh, inv_curr_thresh);
+                                inverse_thresh.read(current_thresh, (bit<32>)inv_curr_thresh);
                             }
                         }
 
