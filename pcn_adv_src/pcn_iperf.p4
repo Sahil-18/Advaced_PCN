@@ -34,7 +34,7 @@ const bit<32> FLOW6_IDX = 5;
 #define MIN_THRESHOLD 1
 #define HARMONIC_THRESHOLD 2
 
-#define THRESHOLD_SCHEME 1
+#define THRESHOLD_SCHEME 2
 
 /*************************************************************************
 *********************** H E A D E R S  ***********************************
@@ -281,12 +281,12 @@ control MyIngress(inout headers hdr,
                                 }
                             } else if (THRESHOLD_SCHEME == HARMONIC_THRESHOLD) {
                                 bit<19> inv_curr_thresh;
-                                inverse_thresh.read(inv_curr_thresh, current_thresh);
+                                inverse_thresh.read(inv_curr_thresh, (bit<32>)current_thresh);
                                 bit<19> threshold_k = K * threshold;
                                 bit<19> inv_thresh;
-                                inverse_thresh.read(inv_thresh, threshold_k);
+                                inverse_thresh.read(inv_thresh, (bit<32>)threshold_k);
                                 inv_curr_thresh = inv_curr_thresh + inv_thresh;
-                                inverse_thresh.read(current_thresh, inv_curr_thresh);
+                                inverse_thresh.read(current_thresh, (bit<32>)inv_curr_thresh);
                             }
                         }
 
@@ -300,7 +300,7 @@ control MyIngress(inout headers hdr,
                         flow_key.write(pos, current_flow);
                     }
 
-                } else if (hdr.tcp.ack == 1) {
+                } else if (hdr.tcp.fin == 1) {
 
                     flow_key_t current_flow;
                     flow_key.read(current_flow, pos);
@@ -329,12 +329,12 @@ control MyIngress(inout headers hdr,
                         } else {
                             if (THRESHOLD_SCHEME == HARMONIC_THRESHOLD) {
                                 bit<19> inv_curr_thresh;
-                                inverse_thresh.read(inv_curr_thresh, current_thresh);
+                                inverse_thresh.read(inv_curr_thresh, (bit<32>)current_thresh);
                                 bit<19> threshold_k = K * threshold;
                                 bit<19> inv_thresh;
-                                inverse_thresh.read(inv_thresh, threshold_k);
+                                inverse_thresh.read(inv_thresh, (bit<32>)threshold_k);
                                 inv_curr_thresh = inv_curr_thresh - inv_thresh;
-                                inverse_thresh.read(current_thresh, inv_curr_thresh);
+                                inverse_thresh.read(current_thresh, (bit<32>)inv_curr_thresh);
                             }
                         }
 
@@ -375,7 +375,9 @@ control MyEgress(inout headers hdr,
         pcn_port_thresh.read(current_thresh, (bit<32>)standard_metadata.ingress_port);
 
         if (current_data > 0) {
-            if (hdr.ipv4.srcAddr == FLOW1 || hdr.ipv4.srcAddr == FLOW2) {
+            if (hdr.ipv4.srcAddr == FLOW1 || hdr.ipv4.srcAddr == FLOW2 ||
+                hdr.ipv4.srcAddr == FLOW3 || hdr.ipv4.srcAddr == FLOW4 ||
+                hdr.ipv4.srcAddr == FLOW5 || hdr.ipv4.srcAddr == FLOW6 ) {
                 if(hdr.tcp.syn == 0 && current_len >= ECN_THRESHOLD) {
                     mark_ecn();
                 }

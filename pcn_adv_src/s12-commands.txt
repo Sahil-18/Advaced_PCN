@@ -13,11 +13,11 @@ table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.12 => 08:00:00:00:0
 table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.13 => 08:00:00:00:00:0d 1
 table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.14 => 08:00:00:00:00:0e 1
 table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.15 => 08:00:00:00:00:0f 2
-table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.16 => 08:00:00:00:00:f1 6
-table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.17 => 08:00:00:00:00:f2 1
-table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.18 => 08:00:00:00:00:f3 1
-table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.19 => 08:00:00:00:00:f4 1
-table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.20 => 08:00:00:00:00:f5 1
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.16 => 08:00:00:00:00:10 6
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.17 => 08:00:00:00:00:11 1
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.18 => 08:00:00:00:00:12 1
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.19 => 08:00:00:00:00:13 1
+table_add MyIngress.ipv4_exact MyIngress.ipv4_forward 10.0.0.20 => 08:00:00:00:00:14 1
 register_write flow_thresh 0 20
 register_write flow_thresh 1 20
 register_write flow_thresh 2 20
