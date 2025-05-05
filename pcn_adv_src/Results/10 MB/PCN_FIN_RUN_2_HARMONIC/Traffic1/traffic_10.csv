@@ -1,0 +1,12 @@
+start_time,end_time,transfer,bandwidth
+0.0,1.0,996 KBytes,8.15 Mbits/sec
+1.0,2.0,1.24 MBytes,10.4 Mbits/sec
+2.0,3.0,1.49 MBytes,12.5 Mbits/sec
+3.0,4.0,1.24 MBytes,10.4 Mbits/sec
+4.0,5.0,1018 KBytes,8.34 Mbits/sec
+5.0,6.0,1.49 MBytes,12.5 Mbits/sec
+6.0,7.0,1018 KBytes,8.34 Mbits/sec
+7.0,8.0,1018 KBytes,8.34 Mbits/sec
+8.0,8.42,764 KBytes,14.8 Mbits/sec
+0.0,8.42,10.2 MBytes,10.1 Mbits/sec
+0.0,8.46,9.56 MBytes,9.48 Mbits/sec
