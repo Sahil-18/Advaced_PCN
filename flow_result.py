@@ -46,16 +46,19 @@ def save_and_plot_graphs(df_per_flow, df_device, folder, tag):
     df_per_flow.to_csv(os.path.join(folder, f"{tag}_per_flow_bandwidth.csv"), index=False)
     df_device.to_csv(os.path.join(folder, f"{tag}_per_device_bandwidth.csv"), index=False)
 
-    plt.figure(figsize=(8, 4))
-    plt.bar(df_per_flow['flow'], df_per_flow['avg_bw_during'], color='skyblue', width=0.5)
-    plt.xticks(rotation=45)
+    plt.figure(figsize=(12, 4))
+    bars = plt.bar(df_per_flow['flow'], df_per_flow['avg_bw_during'], color='skyblue', width=0.5)
+    if len(df_per_flow) > 40:
+        plt.xticks([])
+    else:
+        plt.xticks(rotation=45)
     plt.ylabel("Avg Bandwidth During PCN (Mbps)")
     plt.title(f"Per-Flow Background Bandwidth - {tag}")
     plt.tight_layout()
     plt.savefig(os.path.join(folder, f"{tag}_per_flow_bandwidth.png"))
     plt.close()
 
-    plt.figure(figsize=(7, 4))
+    plt.figure(figsize=(8, 4))
     plt.bar(df_device['device'], df_device['avg_bw_during'], color='orange', width=0.4)
     plt.xticks(rotation=45)
     plt.ylabel("Avg Bandwidth During PCN (Mbps)")
@@ -108,10 +111,14 @@ def generate_bandwidth_data_from_experiment(folder_path, config_name):
 
     return flat_windows, all_flows
 
+
 def analyze_individual_and_combined(config_name, folders, parent_folder, output_folder):
     all_flat_windows = []
     all_flows = []
     run_results = []
+
+    bg_result_folder = os.path.join(output_folder, "Background_Analysis")
+    os.makedirs(bg_result_folder, exist_ok=True)
 
     for i, folder_name in enumerate(folders):
         run_tag = f"{config_name}_RUN_{i+1}"
@@ -125,14 +132,14 @@ def analyze_individual_and_combined(config_name, folders, parent_folder, output_
         global_end = max(end for _, end in flat_windows)
 
         df_per_flow, df_device = compute_bandwidth_statistics(flows, global_start, global_end)
-        save_and_plot_graphs(df_per_flow, df_device, output_folder, run_tag)
+        save_and_plot_graphs(df_per_flow, df_device, bg_result_folder, run_tag)
 
     # Combined analysis
     global_start = min(start for start, _ in all_flat_windows)
     global_end = max(end for _, end in all_flat_windows)
 
     df_per_flow, df_device = compute_bandwidth_statistics(all_flows, global_start, global_end)
-    save_and_plot_graphs(df_per_flow, df_device, output_folder, config_name)
+    save_and_plot_graphs(df_per_flow, df_device, bg_result_folder, config_name)
 
 def compute_bandwidth_statistics(all_flows, global_start, global_end):
     flow_stats = defaultdict(list)
@@ -146,7 +153,7 @@ def compute_bandwidth_statistics(all_flows, global_start, global_end):
         device = row['device']
         bw = parse_bitrate_to_mbps(row['Bitrate'])
         start_sec = int(float(interval.split('-')[0]))
-        flow_key = f"{device}_id{id_}_t{start_sec}"
+        flow_key = f"{device}_id{id_}"
         label = flow_id_map.setdefault(flow_key, f"flow{flow_counter}")
         if label == f"flow{flow_counter}":
             flow_counter += 1
@@ -158,9 +165,9 @@ def compute_bandwidth_statistics(all_flows, global_start, global_end):
     df_per_flow = pd.DataFrame([
         {
             'flow': label,
-            'avg_bw_before': np.mean([bw for t, bw in entries if t == 'before']),
-            'avg_bw_during': np.mean([bw for t, bw in entries if t == 'during']),
-            'avg_bw_after': np.mean([bw for t, bw in entries if t == 'after'])
+            'avg_bw_before': np.mean([bw for t, bw in entries if t == 'before']) if entries else 0,
+            'avg_bw_during': np.mean([bw for t, bw in entries if t == 'during']) if entries else 0,
+            'avg_bw_after': np.mean([bw for t, bw in entries if t == 'after']) if entries else 0
         }
         for label, entries in flow_stats.items()
     ])
@@ -168,9 +175,9 @@ def compute_bandwidth_statistics(all_flows, global_start, global_end):
     df_device = pd.DataFrame([
         {
             'device': dev,
-            'avg_bw_before': np.mean([bw for t, bw in entries if t == 'before']),
-            'avg_bw_during': np.mean([bw for t, bw in entries if t == 'during']),
-            'avg_bw_after': np.mean([bw for t, bw in entries if t == 'after'])
+            'avg_bw_before': np.mean([bw for t, bw in entries if t == 'before']) if entries else 0,
+            'avg_bw_during': np.mean([bw for t, bw in entries if t == 'during']) if entries else 0,
+            'avg_bw_after': np.mean([bw for t, bw in entries if t == 'after']) if entries else 0
         }
         for dev, entries in device_stats.items()
     ])
@@ -197,5 +204,5 @@ if __name__ == "__main__":
                ("/home/spurohi2/Desktop/Advaced_PCN/pcn_adv_src/Results/20 MB", 20)]
                
     for folder, total_data_mb in folders:
-        process_all_configs_background(folder, total_data_mb)
+        process_all_configs_background(folder)
         print(f"Processed folder: {folder}")
