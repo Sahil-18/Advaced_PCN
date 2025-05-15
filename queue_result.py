@@ -110,8 +110,8 @@ def process_all_configs_queue(parent_folder):
             analyze_queue_vs_threshold(run_path, results_folder, run_tag)
 
 if __name__ == "__main__":
-    folders = [("/home/spurohi2/Desktop/Advaced_PCN/pcn_src/Results/10 MB/Big Exp", 10),
-               ("/home/spurohi2/Desktop/Advaced_PCN/pcn_src/Results/20 MB/Big Exp", 20),
+    folders = [("/home/spurohi2/Desktop/Advaced_PCN/pcn_src/Results/10 MB", 10),
+               ("/home/spurohi2/Desktop/Advaced_PCN/pcn_src/Results/20 MB", 20),
                ("/home/spurohi2/Desktop/Advaced_PCN/pcn_adv_src/Results/10 MB", 10),
                ("/home/spurohi2/Desktop/Advaced_PCN/pcn_adv_src/Results/20 MB", 20)]
                

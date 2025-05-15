@@ -81,8 +81,8 @@ def convert_all_iperf_in_folder(root_folder):
                         print(f"Parsed (single): {csv_path}")
 
 if __name__ == "__main__":
-    folders = ["/home/spurohi2/Desktop/Advaced_PCN/pcn_src/Results/10 MB/Big Exp",
-               "/home/spurohi2/Desktop/Advaced_PCN/pcn_src/Results/20 MB/Big Exp",
+    folders = ["/home/spurohi2/Desktop/Advaced_PCN/pcn_src/Results/10 MB",
+               "/home/spurohi2/Desktop/Advaced_PCN/pcn_src/Results/20 MB",
                "/home/spurohi2/Desktop/Advaced_PCN/pcn_adv_src/Results/10 MB",
                "/home/spurohi2/Desktop/Advaced_PCN/pcn_adv_src/Results/20 MB"]
     for folder in folders:

@@ -128,8 +128,8 @@ def process_all_configs(parent_folder, total_data_mb):
         process_combined_experiment(config_name, runs, parent_folder, results_folder, total_data_mb)
 
 if __name__ == "__main__":
-    folders = [("/home/spurohi2/Desktop/Advaced_PCN/pcn_src/Results/10 MB/Big Exp", 10),
-               ("/home/spurohi2/Desktop/Advaced_PCN/pcn_src/Results/20 MB/Big Exp", 20),
+    folders = [("/home/spurohi2/Desktop/Advaced_PCN/pcn_src/Results/10 MB", 10),
+               ("/home/spurohi2/Desktop/Advaced_PCN/pcn_src/Results/20 MB", 20),
                ("/home/spurohi2/Desktop/Advaced_PCN/pcn_adv_src/Results/10 MB", 10),
                ("/home/spurohi2/Desktop/Advaced_PCN/pcn_adv_src/Results/20 MB", 20)]
                
