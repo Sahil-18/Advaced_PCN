@@ -282,21 +282,21 @@ control MyIngress(inout headers hdr,
                                     current_thresh = threshold;
                                 }
                             } else if (THRESHOLD_SCHEME == HARMONIC_THRESHOLD) {
-                                if (current_thresh > 10 && current_thresh < 15) {
+                                if (current_thresh >= 10 && current_thresh < 15) {
                                     current_thresh = 10;
-                                } else if (current_thresh > 15 && current_thresh < 20) {
+                                } else if (current_thresh >= 15 && current_thresh < 20) {
                                     current_thresh = 15;
-                                } else if (current_thresh > 20 && current_thresh < 25) {
+                                } else if (current_thresh >= 20 && current_thresh < 25) {
                                     current_thresh = 20;
-                                } else if (current_thresh > 25 && current_thresh < 30) {
+                                } else if (current_thresh >= 25 && current_thresh < 30) {
                                     current_thresh = 25;
-                                } else if (current_thresh > 30 && current_thresh < 35) {
+                                } else if (current_thresh >= 30 && current_thresh < 35) {
                                     current_thresh = 30;
-                                } else if (current_thresh > 35 && current_thresh < 40) {
+                                } else if (current_thresh >= 35 && current_thresh < 40) {
                                     current_thresh = 35;
-                                } else if (current_thresh > 40 && current_thresh < 45) {
+                                } else if (current_thresh >= 40 && current_thresh < 45) {
                                     current_thresh = 40;
-                                } else if (current_thresh > 45 && current_thresh < 50) {
+                                } else if (current_thresh >= 45 && current_thresh < 50) {
                                     current_thresh = 45;
                                 } else {
                                     current_thresh = 50;
@@ -311,19 +311,19 @@ control MyIngress(inout headers hdr,
 
                                 if (inv_curr_thresh > 10 && inv_curr_thresh < 15) {
                                     inv_curr_thresh = 10;
-                                } else if (inv_curr_thresh > 15 && inv_curr_thresh < 20) {
+                                } else if (inv_curr_thresh >= 15 && inv_curr_thresh < 20) {
                                     inv_curr_thresh = 15;
-                                } else if (inv_curr_thresh > 20 && inv_curr_thresh < 25) {
+                                } else if (inv_curr_thresh >= 20 && inv_curr_thresh < 25) {
                                     inv_curr_thresh = 20;
-                                } else if (inv_curr_thresh > 25 && inv_curr_thresh < 30) {
+                                } else if (inv_curr_thresh >= 25 && inv_curr_thresh < 30) {
                                     inv_curr_thresh = 25;
-                                } else if (inv_curr_thresh > 30 && inv_curr_thresh < 35) {
+                                } else if (inv_curr_thresh >= 30 && inv_curr_thresh < 35) {
                                     inv_curr_thresh = 30;
-                                } else if (inv_curr_thresh > 35 && inv_curr_thresh < 40) {
+                                } else if (inv_curr_thresh >= 35 && inv_curr_thresh < 40) {
                                     inv_curr_thresh = 35;
-                                } else if (inv_curr_thresh > 40 && inv_curr_thresh < 45) {
+                                } else if (inv_curr_thresh >= 40 && inv_curr_thresh < 45) {
                                     inv_curr_thresh = 40;
-                                } else if (inv_curr_thresh > 45 && inv_curr_thresh < 50) {
+                                } else if (inv_curr_thresh >= 45 && inv_curr_thresh < 50) {
                                     inv_curr_thresh = 45;
                                 } else {
                                     inv_curr_thresh = 50;
@@ -371,21 +371,21 @@ control MyIngress(inout headers hdr,
                             current_thresh = ECN_THRESHOLD;
                         } else {
                             if (THRESHOLD_SCHEME == HARMONIC_THRESHOLD) {
-                                if (current_thresh > 10 && current_thresh < 15) {
+                                if (current_thresh >= 10 && current_thresh < 15) {
                                     current_thresh = 10;
-                                } else if (current_thresh > 15 && current_thresh < 20) {
+                                } else if (current_thresh >= 15 && current_thresh < 20) {
                                     current_thresh = 15;
-                                } else if (current_thresh > 20 && current_thresh < 25) {
+                                } else if (current_thresh >= 20 && current_thresh < 25) {
                                     current_thresh = 20;
-                                } else if (current_thresh > 25 && current_thresh < 30) {
+                                } else if (current_thresh >= 25 && current_thresh < 30) {
                                     current_thresh = 25;
-                                } else if (current_thresh > 30 && current_thresh < 35) {
+                                } else if (current_thresh >= 30 && current_thresh < 35) {
                                     current_thresh = 30;
-                                } else if (current_thresh > 35 && current_thresh < 40) {
+                                } else if (current_thresh >= 35 && current_thresh < 40) {
                                     current_thresh = 35;
-                                } else if (current_thresh > 40 && current_thresh < 45) {
+                                } else if (current_thresh >= 40 && current_thresh < 45) {
                                     current_thresh = 40;
-                                } else if (current_thresh > 45 && current_thresh < 50) {
+                                } else if (current_thresh >= 45 && current_thresh < 50) {
                                     current_thresh = 45;
                                 } else {
                                     current_thresh = 50;
@@ -397,21 +397,21 @@ control MyIngress(inout headers hdr,
                                 bit<19> inv_thresh;
                                 inverse_thresh.read(inv_thresh, (bit<32>)threshold_k);
                                 inv_curr_thresh = inv_curr_thresh - inv_thresh;
-                                if (inv_curr_thresh > 10 && inv_curr_thresh < 15) {
+                                if (inv_curr_thresh >= 10 && inv_curr_thresh < 15) {
                                     inv_curr_thresh = 10;
-                                } else if (inv_curr_thresh > 15 && inv_curr_thresh < 20) {
+                                } else if (inv_curr_thresh >= 15 && inv_curr_thresh < 20) {
                                     inv_curr_thresh = 15;
-                                } else if (inv_curr_thresh > 20 && inv_curr_thresh < 25) {
+                                } else if (inv_curr_thresh >= 20 && inv_curr_thresh < 25) {
                                     inv_curr_thresh = 20;
-                                } else if (inv_curr_thresh > 25 && inv_curr_thresh < 30) {
+                                } else if (inv_curr_thresh >= 25 && inv_curr_thresh < 30) {
                                     inv_curr_thresh = 25;
-                                } else if (inv_curr_thresh > 30 && inv_curr_thresh < 35) {
+                                } else if (inv_curr_thresh >= 30 && inv_curr_thresh < 35) {
                                     inv_curr_thresh = 30;
-                                } else if (inv_curr_thresh > 35 && inv_curr_thresh < 40) {
+                                } else if (inv_curr_thresh >= 35 && inv_curr_thresh < 40) {
                                     inv_curr_thresh = 35;
-                                } else if (inv_curr_thresh > 40 && inv_curr_thresh < 45) {
+                                } else if (inv_curr_thresh >= 40 && inv_curr_thresh < 45) {
                                     inv_curr_thresh = 40;
-                                } else if (inv_curr_thresh > 45 && inv_curr_thresh < 50) {
+                                } else if (inv_curr_thresh >= 45 && inv_curr_thresh < 50) {
                                     inv_curr_thresh = 45;
                                 } else {
                                     inv_curr_thresh = 50;

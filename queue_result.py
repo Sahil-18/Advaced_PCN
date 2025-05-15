@@ -5,6 +5,7 @@ import numpy as np
 
 CONFIGS = {
     "NON_PCN": ["NON_PCN_RUN_1", "NON_PCN_RUN_2"],
+    "PCN": ["PCN_RUN_1", "PCN_RUN_2"],
     "PCN_MIN": ["PCN_RUN_1_MIN", "PCN_RUN_2_MIN"],
     "PCN_FIN_MIN": ["PCN_FIN_RUN_1_MIN", "PCN_FIN_RUN_2_MIN"],
     "PCN_HARMONIC": ["PCN_RUN_1_HARMONIC", "PCN_RUN_2_HARMONIC"],

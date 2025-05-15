@@ -22,6 +22,7 @@ def convert_to_mb(value_str):
 # Mapping of configuration names to their folder pairs
 CONFIGS = {
     "NON_PCN": ["NON_PCN_RUN_1", "NON_PCN_RUN_2"],
+    "PCN": ["PCN_RUN_1", "PCN_RUN_2"],
     "PCN_MIN": ["PCN_RUN_1_MIN", "PCN_RUN_2_MIN"],
     "PCN_FIN_MIN": ["PCN_FIN_RUN_1_MIN", "PCN_FIN_RUN_2_MIN"],
     "PCN_HARMONIC": ["PCN_RUN_1_HARMONIC", "PCN_RUN_2_HARMONIC"],
@@ -121,7 +122,7 @@ def process_combined_experiment(config_name, folders, parent_folder, output_fold
     df_stats.to_csv(os.path.join(output_folder, f"{config_name}_iteration_duration_stats.csv"), index=False)
 
 def process_all_configs(parent_folder, total_data_mb):
-    results_folder = os.path.join(parent_folder, "Results")
+    results_folder = os.path.join(parent_folder, "Results", "Duration_Analysis")
     os.makedirs(results_folder, exist_ok=True)
     for config_name, runs in CONFIGS.items():
         process_combined_experiment(config_name, runs, parent_folder, results_folder, total_data_mb)
