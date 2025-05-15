@@ -1,6 +1,0 @@
-start_time,end_time,transfer,bandwidth
-0.0,1.0,1.59 MBytes,13.3 Mbits/sec
-1.0,2.0,7.33 MBytes,61.5 Mbits/sec
-2.0,2.12,1.49 MBytes,105 Mbits/sec
-0.0,2.12,10.4 MBytes,41.2 Mbits/sec
-0.0,2.15,8.54 MBytes,33.2 Mbits/sec

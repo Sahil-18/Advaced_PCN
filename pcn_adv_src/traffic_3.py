@@ -9,7 +9,7 @@ SERVER_IP = "10.0.0.9"
 ITERATION = 5
 SLEEP_DURATION = 5
 DATA_SEND = "10M"
-OUTPUT_DIR = Path("./Results/Traffic1")
+OUTPUT_DIR = Path("./Results/Traffic3")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 SUMMARY_FILE = OUTPUT_DIR / "summary.csv"
 

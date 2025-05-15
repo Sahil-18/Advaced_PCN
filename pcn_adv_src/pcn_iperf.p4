@@ -243,8 +243,6 @@ control MyIngress(inout headers hdr,
                 bit<32> pos;
                 if (hdr.ipv4.srcAddr == FLOW1) {
                     pos = FLOW1_IDX;
-                } else if (hdr.ipv4.srcAddr == FLOW1) {
-                    pos = FLOW1_IDX;
                 } else if (hdr.ipv4.srcAddr == FLOW2) {
                     pos = FLOW2_IDX;
                 } else if (hdr.ipv4.srcAddr == FLOW3) {
@@ -298,7 +296,7 @@ control MyIngress(inout headers hdr,
                                     current_thresh = 40;
                                 } else if (current_thresh >= 45 && current_thresh < 50) {
                                     current_thresh = 45;
-                                } else {
+                                } else if (current_thresh>=50) {
                                     current_thresh = 50;
                                 }
 
@@ -325,7 +323,7 @@ control MyIngress(inout headers hdr,
                                     inv_curr_thresh = 40;
                                 } else if (inv_curr_thresh >= 45 && inv_curr_thresh < 50) {
                                     inv_curr_thresh = 45;
-                                } else {
+                                } else if (inv_curr_thresh>=50) {
                                     inv_curr_thresh = 50;
                                 }
 
@@ -387,7 +385,7 @@ control MyIngress(inout headers hdr,
                                     current_thresh = 40;
                                 } else if (current_thresh >= 45 && current_thresh < 50) {
                                     current_thresh = 45;
-                                } else {
+                                } if (current_thresh>=50) {
                                     current_thresh = 50;
                                 }
 
@@ -413,7 +411,7 @@ control MyIngress(inout headers hdr,
                                     inv_curr_thresh = 40;
                                 } else if (inv_curr_thresh >= 45 && inv_curr_thresh < 50) {
                                     inv_curr_thresh = 45;
-                                } else {
+                                } if (inv_curr_thresh>=50) {
                                     inv_curr_thresh = 50;
                                 }
                                 
