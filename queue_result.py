@@ -49,56 +49,6 @@ def analyze_queue_vs_threshold(experiment_path, output_folder, tag):
     plt.savefig(os.path.join(output_folder, f"{tag}_queue_threshold_timeline.png"))
     plt.close()
 
-    plt.figure(figsize=(8, 6))
-    plt.scatter(df_queue['Threshold'], df_queue['Queue Length'], alpha=0.3, s=5)
-    plt.xlabel("Threshold")
-    plt.ylabel("Queue Length")
-    plt.title("Scatter: Threshold vs Queue Length")
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_folder, f"{tag}_scatter_threshold_vs_queue.png"))
-    plt.close()
-
-    reset_points = df_threshold[
-        (df_threshold['Threshold'] == 40) &
-        (df_threshold['Threshold'].shift(1) < 40)
-    ]['Time from start'].values
-
-    spike_window = 0.01
-    spike_queues = []
-
-    for reset_time in reset_points:
-        mask = (df_queue['Time from start'] >= reset_time) & (df_queue['Time from start'] < reset_time + spike_window)
-        q_after = df_queue[mask]['Queue Length']
-        if not q_after.empty:
-            spike_queues.append(q_after.max())
-
-    plt.figure(figsize=(8, 5))
-    plt.hist(spike_queues, bins=20, color='teal', edgecolor='black')
-    plt.xlabel("Max Queue Length within 10ms after Threshold Reset")
-    plt.ylabel("Frequency")
-    plt.title("Queue Spikes After Threshold Resets")
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_folder, f"{tag}_hist_queue_spike_after_reset.png"))
-    plt.close()
-
-    heatmap_data = pd.DataFrame({
-        'Threshold': df_queue['Threshold'].astype(int),
-        'Queue Length': (df_queue['Queue Length'] // 5 * 5).astype(int)  # binning by 5
-    })
-    pivot = heatmap_data.groupby(['Queue Length', 'Threshold']).size().unstack(fill_value=0)
-
-    plt.figure(figsize=(10, 6))
-    plt.imshow(pivot.values, aspect='auto', cmap="YlGnBu", origin='lower')
-    plt.colorbar(label='Frequency')
-    plt.xticks(ticks=np.arange(len(pivot.columns)), labels=pivot.columns, rotation=45)
-    plt.yticks(ticks=np.arange(0, len(pivot.index), 2), labels=pivot.index[::2])
-    plt.title("Heatmap: Frequency of Queue Length vs Threshold")
-    plt.xlabel("Threshold")
-    plt.ylabel("Queue Length")
-    plt.tight_layout()
-    plt.savefig(os.path.join(output_folder, f"{tag}_heatmap_threshold_vs_queue.png"))
-    plt.close()
 
 def process_all_configs_queue(parent_folder):
     results_folder = os.path.join(parent_folder, "Results", "Queue_Analysis")
